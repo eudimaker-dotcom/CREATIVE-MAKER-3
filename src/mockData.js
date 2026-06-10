@@ -500,6 +500,19 @@ export const mockFonts = [
     views: 88,
     downloads: 15,
     tags: ["Decorativa", "Mostrar", "Luxury", "Luxo"]
+  },
+  {
+    id: "f8",
+    name: "Aquarela",
+    designer: "Studio Dalim",
+    classification: "escrita",
+    style: { fontFamily: "'Dancing Script', cursive", fontWeight: 400 },
+    downloadUrl: "https://fonts.google.com/specimen/Dancing+Script",
+    license: "OFL (Free)",
+    price: 0,
+    views: 145,
+    downloads: 32,
+    tags: ["Escrita", "Elegante", "Script", "Handwriting"]
   }
 ];
 

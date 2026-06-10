@@ -1,34 +1,388 @@
-import React, { useState, useEffect } from 'react';
-import { Sparkles, Download, Copy, Check, Type, Sliders, ArrowUpRight, ChevronDown, Heart } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Sparkles, Download, Copy, Check, Type, Sliders, ChevronDown, Heart, Search, Grid, List, RefreshCw, AlertCircle } from 'lucide-react';
 import { mockFonts } from '../mockData';
 
+// Cache for loaded Google Font families to avoid duplicate requests
+const loadedFontsCache = new Set();
+
+// Dynamic loader for Google Fonts
+const loadGoogleFont = (family) => {
+  if (!family || loadedFontsCache.has(family)) return;
+  const formatted = family.replace(/\s+/g, '+');
+  const linkId = `gfont-${formatted}`;
+  if (document.getElementById(linkId)) return;
+  
+  const link = document.createElement('link');
+  link.id = linkId;
+  link.rel = 'stylesheet';
+  link.href = `https://fonts.googleapis.com/css2?family=${formatted}:ital,wght@0,100..900;1,100..900&display=swap`;
+  document.head.appendChild(link);
+  loadedFontsCache.add(family);
+};
+
+// Shimmer Skeleton Loader Card Component
+const SkeletonCard = ({ viewMode }) => (
+  <div 
+    className="glass-panel pulse-skeleton" 
+    style={{ 
+      padding: '24px', 
+      borderRadius: 'var(--border-radius-lg)', 
+      border: '1px dotted var(--border-color-dotted)', 
+      minHeight: viewMode === 'list' ? 'auto' : '230px', 
+      display: 'flex', 
+      flexDirection: viewMode === 'list' ? 'row' : 'column', 
+      gap: '20px',
+      alignItems: viewMode === 'list' ? 'center' : 'stretch',
+      justifyContent: 'space-between',
+      backgroundColor: 'rgba(28, 25, 23, 0.45)'
+    }}
+  >
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: viewMode === 'list' ? '200px' : 'auto' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ height: '20px', width: '120px', backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: '4px' }}></div>
+        <div style={{ height: '16px', width: '50px', backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: '9999px' }}></div>
+      </div>
+      <div style={{ height: '12px', width: '80px', backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: '4px' }}></div>
+    </div>
+    <div style={{ height: '70px', flexGrow: 1, backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: '8px', width: '100%' }}></div>
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', minWidth: viewMode === 'list' ? '140px' : 'auto', marginTop: viewMode === 'list' ? '0' : '8px' }}>
+      <div style={{ display: 'flex', gap: '8px' }}>
+        <div style={{ height: '32px', width: '32px', backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: '8px' }}></div>
+        <div style={{ height: '32px', width: '32px', backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: '8px' }}></div>
+      </div>
+      <div style={{ height: '32px', width: '100px', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '6px' }}></div>
+    </div>
+  </div>
+);
+
+// Individual Font Specimen Card Component
+const FontCard = React.memo(({ 
+  font, 
+  previewText, 
+  fontSize, 
+  fontWeight, 
+  isItalic, 
+  textTransform, 
+  textAlign, 
+  letterSpacing, 
+  viewMode, 
+  isFavorite, 
+  onToggleFavorite, 
+  onCopyName, 
+  onCopyCSS, 
+  onDownload, 
+  downloadingId, 
+  user,
+  highlightText,
+  searchQuery
+}) => {
+  
+  // Lazy-load Google Fonts file dynamically when the card renders
+  useEffect(() => {
+    if (font.style?.fontFamily) {
+      const familyName = font.style.fontFamily.split(',')[0].replace(/['"]/g, '').trim();
+      // Only load from Google Fonts if it's not standard system fallbacks like monospace
+      if (familyName.toLowerCase() !== 'monospace' && familyName.toLowerCase() !== 'sans-serif' && familyName.toLowerCase() !== 'serif') {
+        loadGoogleFont(familyName);
+      }
+    }
+  }, [font.style?.fontFamily]);
+
+  const isDownloading = downloadingId === font.id;
+  const isPremium = font.price > 0;
+  const isPurchased = user && user.downloads && user.downloads.includes(font.id);
+
+  // Build reactive typography styles
+  const previewStyle = {
+    fontFamily: font.style?.fontFamily || 'sans-serif',
+    fontSize: `${fontSize}px`,
+    fontWeight: fontWeight,
+    fontStyle: isItalic ? 'italic' : 'normal',
+    textTransform: textTransform,
+    textAlign: textAlign,
+    letterSpacing: `${letterSpacing}px`,
+    lineHeight: 1.25,
+    wordBreak: 'break-word',
+    transition: 'font-size 0.1s ease, letter-spacing 0.1s ease',
+    width: '100%',
+    color: '#ffffff',
+  };
+
+  return (
+    <div 
+      className="glass-panel font-card-hover"
+      style={{
+        padding: '20px',
+        borderRadius: 'var(--border-radius-lg)',
+        border: '1px dotted var(--border-color-dotted)',
+        display: 'flex',
+        flexDirection: viewMode === 'list' ? 'row' : 'column',
+        gap: '20px',
+        alignItems: viewMode === 'list' ? 'center' : 'stretch',
+        justifyContent: 'space-between',
+        textAlign: 'left',
+        minHeight: viewMode === 'list' ? 'auto' : '230px',
+        backgroundColor: 'rgba(28, 25, 23, 0.45)',
+        transition: 'transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease',
+      }}
+    >
+      {/* Upper/Left Info */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: viewMode === 'list' ? '200px' : 'auto' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <h3 
+            style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-color)', cursor: 'pointer', outline: 'none' }}
+            tabIndex={0}
+            onClick={() => onCopyName(font.name)}
+            onKeyDown={(e) => e.key === 'Enter' && onCopyName(font.name)}
+            title="Clique para copiar o nome da fonte"
+            aria-label={`Nome da fonte: ${font.name}. Pressione Enter para copiar.`}
+          >
+            {highlightText(font.name, searchQuery)}
+          </h3>
+          <span className="badge-secondary" style={{ fontSize: '0.65rem', textTransform: 'capitalize' }}>
+            {font.classification}
+          </span>
+          {isPremium && (
+            <span className="badge-secondary" style={{ fontSize: '0.65rem', borderColor: 'var(--accent-color)', color: 'var(--accent-color)', fontWeight: 700 }}>
+              Premium
+            </span>
+          )}
+        </div>
+        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Por {font.designer}</p>
+      </div>
+
+      {/* Main Specimen Preview */}
+      <div 
+        style={{ 
+          backgroundColor: '#0c0a09',
+          border: '1px solid rgba(255,255,255,0.05)',
+          borderRadius: '12px',
+          padding: '20px',
+          flexGrow: 1,
+          display: 'flex',
+          alignItems: 'center',
+          minHeight: '90px',
+          overflow: 'hidden',
+          width: '100%'
+        }}
+      >
+        <div style={previewStyle}>
+          {previewText || font.name}
+        </div>
+      </div>
+
+      {/* Actions and Controls */}
+      <div 
+        style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between', 
+          gap: '12px',
+          flexDirection: viewMode === 'list' ? 'column' : 'row',
+          minWidth: viewMode === 'list' ? '140px' : 'auto',
+          marginTop: viewMode === 'list' ? '0' : '8px'
+        }}
+      >
+        {/* Favorite heart & Copy CSS Buttons */}
+        <div style={{ display: 'flex', gap: '8px' }}>
+          {/* Favorite */}
+          <button
+            onClick={onToggleFavorite}
+            className="btn-dotted-link"
+            style={{ 
+              padding: '8px', 
+              borderRadius: '8px', 
+              color: isFavorite ? '#ff3b30' : 'var(--text-color)', 
+              borderColor: isFavorite ? '#ff3b30' : 'var(--border-color-dotted)',
+              cursor: 'pointer',
+              outline: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: 'transparent'
+            }}
+            tabIndex={0}
+            title={isFavorite ? "Remover dos favoritos" : "Salvar nas favoritas"}
+            aria-label={isFavorite ? "Remover dos favoritos" : "Salvar nas favoritas"}
+          >
+            <Heart size={14} fill={isFavorite ? "currentColor" : "none"} />
+          </button>
+
+          {/* Copy CSS code */}
+          <button
+            onClick={() => onCopyCSS(font.name)}
+            className="btn-dotted-link"
+            style={{ 
+              padding: '8px', 
+              borderRadius: '8px', 
+              cursor: 'pointer',
+              outline: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: 'transparent'
+            }}
+            tabIndex={0}
+            title="Copiar código CSS font-family"
+            aria-label="Copiar CSS font-family"
+          >
+            <Copy size={14} />
+          </button>
+        </div>
+
+        {/* Download State Button */}
+        <div>
+          {isPremium ? (
+            isPurchased ? (
+              <button 
+                onClick={() => onDownload(font)}
+                disabled={isDownloading}
+                className="hover-translate"
+                style={{ 
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '0.8rem',
+                  color: '#000000',
+                  backgroundColor: 'var(--accent-color)',
+                  border: 'none',
+                  borderRadius: 'var(--border-radius-sm)',
+                  padding: '8px 14px',
+                  fontWeight: 600,
+                  cursor: isDownloading ? 'default' : 'pointer',
+                  opacity: isDownloading ? 0.7 : 1,
+                  outline: 'none'
+                }}
+                tabIndex={0}
+                aria-label={`Baixar fonte premium adquirida: ${font.name}`}
+              >
+                {isDownloading ? (
+                  <span className="spinner-loader" />
+                ) : (
+                  <Download size={13} style={{ color: '#000000' }} />
+                )}
+                <span>{isDownloading ? 'Baixando...' : 'Download'}</span>
+              </button>
+            ) : (
+              <button 
+                onClick={() => onDownload(font)}
+                className="hover-translate"
+                style={{ 
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '0.8rem',
+                  color: '#ffffff',
+                  backgroundColor: '#0026ff',
+                  border: 'none',
+                  borderRadius: 'var(--border-radius-sm)',
+                  padding: '8px 14px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  outline: 'none'
+                }}
+                tabIndex={0}
+                aria-label={`Comprar licença da fonte premium: ${font.name}`}
+              >
+                <span>Comprar (${font.price || '2.99'})</span>
+              </button>
+            )
+          ) : (
+            <button 
+              onClick={() => onDownload(font)}
+              disabled={isDownloading}
+              className="hover-translate"
+              style={{ 
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '0.8rem',
+                color: '#000000',
+                backgroundColor: 'var(--accent-color)',
+                border: 'none',
+                borderRadius: 'var(--border-radius-sm)',
+                padding: '8px 14px',
+                fontWeight: 600,
+                cursor: isDownloading ? 'default' : 'pointer',
+                opacity: isDownloading ? 0.7 : 1,
+                outline: 'none'
+              }}
+              tabIndex={0}
+              aria-label={`Baixar fonte gratuita: ${font.name}`}
+            >
+              {isDownloading ? (
+                <span className="spinner-loader" />
+              ) : (
+                <Download size={13} style={{ color: '#000000' }} />
+              )}
+              <span>{isDownloading ? 'Baixando...' : 'Download (Grátis)'}</span>
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+});
 
 export default function FontsGallery({ onOpenAuth, user, onPurchase }) {
   const [fontsList, setFontsList] = useState(mockFonts);
   const [initialDownloads] = useState(() => user?.downloads || []);
+  
+  // Custom Typography & Preview States
+  const [typedText, setTypedText] = useState('Aa Bb Cc — O design fala');
   const [previewText, setPreviewText] = useState('Aa Bb Cc — O design fala');
   const [fontSize, setFontSize] = useState(36);
-  const [copiedId, setCopiedId] = useState(null);
-  const [classificationFilter, setClassificationFilter] = useState('All');
-  const [selectedDesigner, setSelectedDesigner] = useState('Todos');
+  const [fontWeight, setFontWeight] = useState(600);
+  const [isItalic, setIsItalic] = useState(false);
+  const [textTransform, setTextTransform] = useState('none'); // 'none', 'uppercase', 'lowercase'
+  const [textAlign, setTextAlign] = useState('left'); // 'left', 'center', 'right'
+  const [letterSpacing, setLetterSpacing] = useState(0); // -3px to 15px
+  
+  // Layout and Search States
+  const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeStyles, setActiveStyles] = useState([]); // Multiple selected styles
+  const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
   const [sortBy, setSortBy] = useState('Título (A-Z)');
-  const [columnCount, setColumnCount] = useState(3);
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [letterFilter, setLetterFilter] = useState('Todos');
+  const [visibleCount, setVisibleCount] = useState(4); // Load more increments
+  
+  // Loading & Feedback states
+  const [isLoading, setIsLoading] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [showToast, setShowToast] = useState(false);
+  const [downloadingId, setDownloadingId] = useState(null);
 
-  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+  // Favorites state backed by LocalStorage
+  const [favorites, setFavorites] = useState(() => {
+    const saved = localStorage.getItem('cm3_favorite_fonts');
+    return saved ? JSON.parse(saved) : [];
+  });
 
-  // Sync font classification filter from URL
+  // Persist favorites
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const styleParam = urlParams.get('style');
-    if (styleParam) {
-      setClassificationFilter(styleParam);
-    }
-  }, [window.location.search]);
+    localStorage.setItem('cm3_favorite_fonts', JSON.stringify(favorites));
+  }, [favorites]);
 
-  // Reactively increment downloads for premium fonts when purchased
+  // Debounce effect for custom preview text to ensure high performance
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setPreviewText(typedText);
+    }, 250);
+    return () => clearTimeout(handler);
+  }, [typedText]);
+
+  // Shimmer loading trigger when filters or query changes to simulate API search
+  useEffect(() => {
+    setIsLoading(true);
+    const handler = setTimeout(() => {
+      setIsLoading(false);
+    }, 400);
+    return () => clearTimeout(handler);
+  }, [searchQuery, activeStyles, showOnlyFavorites, sortBy]);
+
+  // Reactively increment downloads for premium fonts when purchased successfully
   useEffect(() => {
     if (user && user.downloads) {
       setFontsList(prev => prev.map(f => {
@@ -40,109 +394,189 @@ export default function FontsGallery({ onOpenAuth, user, onPurchase }) {
     }
   }, [user?.downloads, initialDownloads]);
 
-  const handleIncrementDownload = (fontId) => {
-    setFontsList(prev => prev.map(f => {
-      if (f.id === fontId) {
-        return { ...f, downloads: (f.downloads || 0) + 1 };
+  // Toggle favorite font ID
+  const handleToggleFavorite = (fontId) => {
+    setFavorites(prev => {
+      const exists = prev.includes(fontId);
+      if (exists) {
+        triggerToast("Removida dos favoritos.");
+        return prev.filter(id => id !== fontId);
+      } else {
+        triggerToast("Adicionada aos favoritos!");
+        return [...prev, fontId];
       }
-      return f;
-    }));
+    });
   };
 
-  const handleCopyCode = (fontName, id) => {
-    navigator.clipboard.writeText(`font-family: "${fontName}", sans-serif;`);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
+  // Toast feedback trigger
+  const triggerToast = (msg) => {
+    setToastMessage(msg);
+    setShowToast(true);
   };
 
+  useEffect(() => {
+    if (showToast) {
+      const timer = setTimeout(() => setShowToast(false), 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [showToast]);
+
+  // Action callbacks
+  const handleCopyName = (name) => {
+    navigator.clipboard.writeText(name);
+    triggerToast(`Nome "${name}" copiado!`);
+  };
+
+  const handleCopyCSS = (name) => {
+    const cssCode = `font-family: "${name}", sans-serif;`;
+    navigator.clipboard.writeText(cssCode);
+    triggerToast("Código CSS font-family copiado!");
+  };
+
+  // Free/Premium Download trigger
+  const handleDownload = (font) => {
+    const isPremium = font.price > 0;
+    const isPurchased = user && user.downloads && user.downloads.includes(font.id);
+
+    if (isPremium && !isPurchased) {
+      if (!user) {
+        onOpenAuth();
+      } else {
+        onPurchase(font);
+      }
+      return;
+    }
+
+    // Free Font or Purchased Font: trigger simulated packaging loader
+    setDownloadingId(font.id);
+    setTimeout(() => {
+      setDownloadingId(null);
+      // Increment local download count state
+      setFontsList(prev => prev.map(f => f.id === font.id ? { ...f, downloads: (f.downloads || 0) + 1 } : f));
+      
+      // Open official URL safely in new tab
+      window.open(font.downloadUrl, '_blank', 'noopener,noreferrer');
+      triggerToast(`Download de "${font.name}" iniciado!`);
+    }, 1200);
+  };
+
+  // Text highlighting helper for search matching
+  const highlightText = (text, search) => {
+    if (!search.trim()) return <span>{text}</span>;
+    const regex = new RegExp(`(${search})`, 'gi');
+    const parts = text.split(regex);
+    return (
+      <span>
+        {parts.map((part, i) => 
+          regex.test(part) 
+            ? <mark key={i} style={{ backgroundColor: 'var(--accent-color)', color: '#000000', borderRadius: '3px', padding: '0 2px', fontWeight: 800 }}>{part}</mark>
+            : part
+        )}
+      </span>
+    );
+  };
+
+  // Classifications filters static mapping
   const classifications = [
-    { name: "All", label: "Todos" },
-    { name: "Sans Serif", label: "Sans Serif" },
-    { name: "Serif", label: "Serif" },
-    { name: "Display", label: "Display" },
-    { name: "Script", label: "Script" },
-    { name: "Luxury", label: "Luxury" },
-    { name: "Corporate", label: "Corporate" },
-    { name: "Minimalista", label: "Minimalista" },
-    { name: "Moderna", label: "Moderna" }
+    { name: "Serif", label: "Serif", norm: "serifa" },
+    { name: "Sans Serif", label: "Sans Serif", norm: "sem serifa" },
+    { name: "Display", label: "Display", norm: "exibição" },
+    { name: "Script", label: "Script", norm: "roteiro" },
+    { name: "Monospace", label: "Monospace", norm: "monoespaçada" },
+    { name: "Handwriting", label: "Handwriting", norm: "escrita" }
   ];
 
-  const matchFontClassification = (font, filter) => {
-    if (filter === 'All') return true;
-    const normFilter = filter.toLowerCase();
-    
-    if (normFilter === 'sans serif') return font.classification === 'sem serifa';
-    if (normFilter === 'serif') return font.classification === 'serifa';
-    if (normFilter === 'display') return font.classification === 'exibição';
-    if (normFilter === 'script') return font.classification === 'roteiro';
-    if (normFilter === 'luxury') return font.tags?.some(t => t.toLowerCase() === 'luxo' || t.toLowerCase() === 'luxury');
-    if (normFilter === 'corporate') return font.tags?.some(t => t.toLowerCase() === 'corporate' || t.toLowerCase() === 'corporativa');
-    if (normFilter === 'minimalista') return font.tags?.some(t => t.toLowerCase() === 'minimalista' || t.toLowerCase() === 'minimal');
-    if (normFilter === 'moderna') return font.tags?.some(t => t.toLowerCase() === 'moderno' || t.toLowerCase() === 'moderna');
-    
-    return font.classification?.toLowerCase() === normFilter || 
-           font.tags?.some(t => t.toLowerCase() === normFilter);
+  // Combined filters logic
+  const filteredFonts = useMemo(() => {
+    return fontsList.filter(font => {
+      // 1. Search filter (Name or designer)
+      const matchesSearch = !searchQuery.trim() || 
+        font.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        font.designer.toLowerCase().includes(searchQuery.toLowerCase());
+
+      // 2. Multi-select Styles filter
+      const matchesStyles = activeStyles.length === 0 || activeStyles.some(styleName => {
+        const targetClass = classifications.find(c => c.name === styleName);
+        if (!targetClass) return false;
+        
+        // Handle specific normalization matches
+        if (targetClass.norm === 'exibição') {
+          return font.classification === 'exibição' || font.classification === 'decorativa';
+        }
+        return font.classification === targetClass.norm;
+      });
+
+      // 3. Favorites toggle filter
+      const matchesFavorites = !showOnlyFavorites || favorites.includes(font.id);
+
+      return matchesSearch && matchesStyles && matchesFavorites;
+    }).sort((a, b) => {
+      if (sortBy === 'Título (Z-A)') {
+        return b.name.localeCompare(a.name);
+      }
+      if (sortBy === 'Popularidade') {
+        return (b.downloads || 0) - (a.downloads || 0);
+      }
+      return a.name.localeCompare(b.name);
+    });
+  }, [fontsList, searchQuery, activeStyles, showOnlyFavorites, favorites, sortBy]);
+
+  // Toggle filter style function
+  const handleToggleStyleFilter = (name) => {
+    setActiveStyles(prev => 
+      prev.includes(name) ? prev.filter(s => s !== name) : [...prev, name]
+    );
   };
 
-  const getClassificationCount = (cls) => {
-    return fontsList.filter(f => matchFontClassification(f, cls)).length;
+  // Get active count helper
+  const getClassificationCount = (clsObj) => {
+    return fontsList.filter(font => {
+      if (clsObj.norm === 'exibição') {
+        return font.classification === 'exibição' || font.classification === 'decorativa';
+      }
+      return font.classification === clsObj.norm;
+    }).length;
   };
 
-  // Get unique designers from fontsList dynamically
-  const designers = ["Todos", ...new Set(fontsList.map(f => f.designer))];
-
-  const filteredFonts = fontsList.filter(font => {
-    const matchesClassification = matchFontClassification(font, classificationFilter);
-    const matchesDesigner = selectedDesigner === 'Todos' || font.designer === selectedDesigner;
-    const matchesLetter = letterFilter === 'Todos' || !letterFilter || font.name.toUpperCase().startsWith(letterFilter);
-    return matchesClassification && matchesDesigner && matchesLetter;
-  }).sort((a, b) => {
-    if (sortBy === 'Título (Z-A)') {
-      return b.name.localeCompare(a.name);
-    }
-    return a.name.localeCompare(b.name);
-  });
-
-  // Pagination Logic
-  const fontsPerPage = 3; // 3 items per page so pagination is visible with 7 mock fonts
-  const totalPages = Math.ceil(filteredFonts.length / fontsPerPage);
-  const activePage = Math.min(currentPage, totalPages || 1);
-  const startIndex = (activePage - 1) * fontsPerPage;
-  const paginatedFonts = filteredFonts.slice(startIndex, startIndex + fontsPerPage);
+  const paginatedFonts = filteredFonts.slice(0, visibleCount);
+  const hasMore = filteredFonts.length > paginatedFonts.length;
 
   return (
     <div className="container-dalim" style={{ padding: '40px 24px 80px 24px' }}>
       
-      {/* 1. Fonts Hero Section */}
+      {/* 1. Header Hero */}
       <div style={{ 
         display: 'flex', 
         flexDirection: 'column', 
         alignItems: 'center', 
         justifyContent: 'center', 
         textAlign: 'center', 
-        marginBottom: '48px', 
+        marginBottom: '40px', 
         position: 'relative', 
         width: '100%' 
       }}>
-        <div className="radial-glow-layer" style={{ height: '200px' }}>
+        <div className="radial-glow-layer" style={{ height: '180px' }}>
           <div className="radial-glow-green" />
         </div>
 
         <h1 className="metallic-text" style={{ 
           fontSize: 'clamp(3.5rem, 8vw, 6rem)', 
           fontWeight: 900, 
-          margin: '24px 0', 
+          margin: '20px 0', 
           lineHeight: 1.1,
-          fontFamily: "'Space Grotesk', 'Courier New', monospace",
+          fontFamily: "'Space Grotesk', sans-serif",
           letterSpacing: '0.1em',
           textTransform: 'uppercase',
           textAlign: 'center'
         }}>
           FONTES
         </h1>
+        <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', maxWidth: '500px', marginTop: '-10px' }}>
+          Explore, experimente e adquira tipografias premium e gratuitas com renderização avançada.
+        </p>
       </div>
 
-      {/* 2. MainFontPreviewControls */}
+      {/* 2. Main Search & Filters Panel */}
       <div 
         className="glass-panel"
         style={{
@@ -151,18 +585,58 @@ export default function FontsGallery({ onOpenAuth, user, onPurchase }) {
           border: '1px dotted var(--border-color-dotted)',
           display: 'flex',
           flexDirection: 'column',
-          gap: '20px',
-          marginBottom: '40px',
+          gap: '24px',
+          marginBottom: '32px',
           textAlign: 'left'
         }}
       >
+        {/* Row 1: Search & Basic preview text */}
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(1, minmax(0, 1fr))',
           gap: '20px'
         }} className="md:grid-cols-3">
           
-          {/* Custom preview text input */}
+          {/* Search bar input */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              <Search size={12} />
+              <span>Pesquisar Fontes</span>
+            </label>
+            <div style={{ position: 'relative' }}>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="input-ali"
+                placeholder="Busque por nome ou designer..."
+                style={{ paddingRight: '30px', width: '100%' }}
+                aria-label="Pesquisar fontes pelo nome ou designer"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  style={{
+                    position: 'absolute',
+                    right: '10px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    fontSize: '0.75rem',
+                    fontWeight: 700
+                  }}
+                  aria-label="Limpar pesquisa"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Custom specimen text */}
           <div className="md:col-span-2" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
               <Type size={12} />
@@ -170,21 +644,32 @@ export default function FontsGallery({ onOpenAuth, user, onPurchase }) {
             </label>
             <input
               type="text"
-              value={previewText}
-              onChange={(e) => setPreviewText(e.target.value)}
+              value={typedText}
+              onChange={(e) => setTypedText(e.target.value)}
               className="input-ali"
               placeholder="Digite o texto personalizado para visualizar as fontes..."
+              aria-label="Digite texto personalizado para visualizar as fontes"
             />
           </div>
+        </div>
 
-          {/* Size slider controller */}
+        {/* Row 2: Advanced Typography Controls */}
+        <div style={{
+          borderTop: '1px solid rgba(255,255,255,0.06)',
+          paddingTop: '20px',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(1, minmax(0, 1fr))',
+          gap: '24px'
+        }} className="md:grid-cols-4">
+          
+          {/* Font Size slider */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <div className="flex-between" style={{ alignItems: 'center' }}>
               <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                 <Sliders size={12} />
-                <span>Tamanho da Fonte</span>
+                <span>Tamanho: <strong style={{ color: '#ffffff' }}>{fontSize}px</strong></span>
               </label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ display: 'flex', gap: '4px' }}>
                 <button
                   type="button"
                   onClick={() => setFontSize(prev => Math.max(14, prev - 2))}
@@ -195,38 +680,14 @@ export default function FontsGallery({ onOpenAuth, user, onPurchase }) {
                     color: '#ffffff',
                     width: '24px',
                     height: '24px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
                     cursor: 'pointer',
-                    fontSize: '0.8rem',
-                    fontWeight: 'bold'
-                  }}
-                >
-                  -
-                </button>
-                <input
-                  type="number"
-                  min="14"
-                  max="120"
-                  value={fontSize}
-                  onChange={(e) => {
-                    const val = parseInt(e.target.value);
-                    if (!isNaN(val)) setFontSize(Math.min(120, Math.max(14, val)));
-                  }}
-                  style={{
-                    width: '45px',
-                    height: '24px',
-                    backgroundColor: '#0c0a09',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: '4px',
-                    color: '#ffffff',
-                    textAlign: 'center',
                     fontSize: '0.75rem',
-                    fontWeight: 700,
-                    outline: 'none'
+                    fontWeight: 800
                   }}
-                />
+                  aria-label="Diminuir tamanho da fonte"
+                >
+                  A-
+                </button>
                 <button
                   type="button"
                   onClick={() => setFontSize(prev => Math.min(120, prev + 2))}
@@ -237,17 +698,14 @@ export default function FontsGallery({ onOpenAuth, user, onPurchase }) {
                     color: '#ffffff',
                     width: '24px',
                     height: '24px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
                     cursor: 'pointer',
-                    fontSize: '0.8rem',
-                    fontWeight: 'bold'
+                    fontSize: '0.75rem',
+                    fontWeight: 800
                   }}
+                  aria-label="Aumentar tamanho da fonte"
                 >
-                  +
+                  A+
                 </button>
-                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginLeft: '2px' }}>px</span>
               </div>
             </div>
             <input
@@ -258,526 +716,483 @@ export default function FontsGallery({ onOpenAuth, user, onPurchase }) {
               onChange={(e) => setFontSize(parseInt(e.target.value))}
               style={{
                 width: '100%',
-                height: '6px',
+                height: '5px',
+                borderRadius: '9999px',
+                cursor: 'pointer',
+                accentColor: 'var(--accent-color)',
+                marginTop: '10px'
+              }}
+              aria-label="Ajustar tamanho da fonte"
+            />
+          </div>
+
+          {/* Font Weight slider */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+              Peso (Weight): <strong style={{ color: '#ffffff' }}>{fontWeight}</strong>
+            </label>
+            <input
+              type="range"
+              min="100"
+              max="900"
+              step="100"
+              value={fontWeight}
+              onChange={(e) => setFontWeight(parseInt(e.target.value))}
+              style={{
+                width: '100%',
+                height: '5px',
                 borderRadius: '9999px',
                 cursor: 'pointer',
                 accentColor: 'var(--accent-color)',
                 marginTop: '16px'
               }}
+              aria-label="Ajustar peso da fonte"
             />
           </div>
 
-        </div>
+          {/* Letter Spacing slider */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+              Espaçamento: <strong style={{ color: '#ffffff' }}>{letterSpacing}px</strong>
+            </label>
+            <input
+              type="range"
+              min="-3"
+              max="15"
+              step="1"
+              value={letterSpacing}
+              onChange={(e) => setLetterSpacing(parseInt(e.target.value))}
+              style={{
+                width: '100%',
+                height: '5px',
+                borderRadius: '9999px',
+                cursor: 'pointer',
+                accentColor: 'var(--accent-color)',
+                marginTop: '16px'
+              }}
+              aria-label="Ajustar espaçamento de letras"
+            />
+          </div>
 
+          {/* Text alignment & transform options */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>Alinhamento e Estilo</span>
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+              {/* Italic Toggle */}
+              <button
+                type="button"
+                onClick={() => setIsItalic(!isItalic)}
+                style={{
+                  backgroundColor: isItalic ? 'var(--accent-color)' : 'rgba(255,255,255,0.04)',
+                  color: isItalic ? '#000000' : '#ffffff',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  borderRadius: '6px',
+                  padding: '4px 10px',
+                  fontSize: '0.75rem',
+                  fontWeight: 800,
+                  fontStyle: 'italic',
+                  cursor: 'pointer'
+                }}
+                aria-label="Alternar itálico"
+              >
+                I
+              </button>
+
+              {/* Text Transform selector */}
+              <div style={{ display: 'flex', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', overflow: 'hidden' }}>
+                {['none', 'uppercase', 'lowercase'].map((mode) => {
+                  const label = mode === 'none' ? 'Aa' : mode === 'uppercase' ? 'AA' : 'aa';
+                  const isActive = textTransform === mode;
+                  return (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => setTextTransform(mode)}
+                      style={{
+                        backgroundColor: isActive ? '#ffffff' : 'rgba(0,0,0,0.2)',
+                        color: isActive ? '#000000' : '#8c8a89',
+                        border: 'none',
+                        padding: '4px 8px',
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Text align selector */}
+              <div style={{ display: 'flex', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', overflow: 'hidden' }}>
+                {['left', 'center', 'right'].map((align) => {
+                  const label = align === 'left' ? '⬅' : align === 'center' ? '⏺' : '➡';
+                  const isActive = textAlign === align;
+                  return (
+                    <button
+                      key={align}
+                      type="button"
+                      onClick={() => setTextAlign(align)}
+                      style={{
+                        backgroundColor: isActive ? '#ffffff' : 'rgba(0,0,0,0.2)',
+                        color: isActive ? '#000000' : '#8c8a89',
+                        border: 'none',
+                        padding: '4px 8px',
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                        cursor: 'pointer'
+                      }}
+                      title={`Alinhar à ${align === 'left' ? 'esquerda' : align === 'center' ? 'centro' : 'direita'}`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Single-Tier Filters Component */}
-      <div style={{ marginBottom: '32px', position: 'relative', zIndex: 40 }}>
+      {/* 3. Combined Filter Bar & Layout selector */}
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        gap: '20px', 
+        marginBottom: '24px', 
+        flexWrap: 'wrap' 
+      }}>
         
-        {/* Glow */}
-        <div className="radial-glow-gold" />
+        {/* Style pills (Multi-select) */}
+        <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px', maxWidth: '100%' }} className="no-scrollbar">
+          
+          {/* "Todos" selector */}
+          <button
+            type="button"
+            onClick={() => {
+              setActiveStyles([]);
+              setShowOnlyFavorites(false);
+            }}
+            style={{
+              backgroundColor: (activeStyles.length === 0 && !showOnlyFavorites) ? 'var(--accent-color)' : 'rgba(255,255,255,0.03)',
+              color: (activeStyles.length === 0 && !showOnlyFavorites) ? '#000000' : '#a8a29e',
+              border: '1px solid rgba(255,255,255,0.06)',
+              padding: '6px 14px',
+              borderRadius: '9999px',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              cursor: 'pointer'
+            }}
+          >
+            Todos ({fontsList.length})
+          </button>
 
-        {/* 1. Upper Bar: Classification Selection with Counts */}
-        <div style={{
-          backgroundColor: 'rgba(28, 25, 23, 0.65)',
-          backdropFilter: 'blur(12px)',
-          borderRadius: '9999px',
-          padding: '6px 12px',
-          border: '1px solid rgba(255,255,255,0.06)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px',
-          overflowX: 'auto',
-          whiteSpace: 'nowrap',
-          marginBottom: '16px',
-          scrollbarWidth: 'none'
-        }} className="no-scrollbar">
+          {/* Active category style pills */}
           {classifications.map((c) => {
-            const isActive = classificationFilter === c.name;
+            const isActive = activeStyles.includes(c.name);
             return (
               <button
                 key={c.name}
-                onClick={() => setClassificationFilter(c.name)}
+                type="button"
+                onClick={() => handleToggleStyleFilter(c.name)}
                 style={{
-                  backgroundColor: isActive ? '#000000' : 'transparent',
-                  color: isActive ? '#ffffff' : '#a8a29e',
-                  border: 'none',
-                  padding: '8px 18px',
+                  backgroundColor: isActive ? '#ffffff' : 'rgba(255,255,255,0.03)',
+                  color: isActive ? '#000000' : '#a8a29e',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                  padding: '6px 14px',
                   borderRadius: '9999px',
-                  fontSize: '0.8rem',
-                  fontWeight: isActive ? 600 : 500,
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
                   cursor: 'pointer',
-                  transition: 'var(--transition-smooth)',
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '6px'
                 }}
               >
                 <span>{c.label}</span>
-                <span style={{ fontSize: '0.7rem', opacity: 0.6, marginLeft: '2px' }}>{getClassificationCount(c.name)}</span>
+                <span style={{ fontSize: '0.65rem', opacity: isActive ? 0.8 : 0.5 }}>{getClassificationCount(c)}</span>
               </button>
             );
           })}
+
+          {/* Favorites filter tab */}
+          <button
+            type="button"
+            onClick={() => {
+              setShowOnlyFavorites(!showOnlyFavorites);
+              setActiveStyles([]); // reset classifications when viewing favorites to keep it clear
+            }}
+            style={{
+              backgroundColor: showOnlyFavorites ? '#ff3b30' : 'rgba(255,255,255,0.03)',
+              color: showOnlyFavorites ? '#ffffff' : '#a8a29e',
+              border: '1px solid rgba(255,255,255,0.06)',
+              padding: '6px 14px',
+              borderRadius: '9999px',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            <Heart size={10} fill={showOnlyFavorites ? "currentColor" : "none"} />
+            <span>Favoritas ({favorites.length})</span>
+          </button>
         </div>
-      </div>
 
-      {/* 3. Fonts Gallery Grid */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', textAlign: 'left' }}>
-        
-        {paginatedFonts.map((font) => {
-          const isCopied = copiedId === font.id;
-          return (
-            <div 
-              key={font.id}
-              className="glass-panel"
-              style={{
-                padding: '16px',
-                borderRadius: 'var(--border-radius-lg)',
-                border: '1px dotted var(--border-color-dotted)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '12px'
-              }}
-            >
-              {/* Upper Box: Specimen Preview */}
-              <div 
-                onClick={() => handleCopyCode(font.name, font.id)}
-                title="Clique para copiar a classe CSS"
-                style={{ 
-                  backgroundColor: '#0c0a09',
-                  border: isCopied ? '1px solid var(--accent-color)' : '1px solid rgba(255,255,255,0.05)',
-                  borderRadius: '16px',
-                  padding: '24px 20px',
-                  position: 'relative',
-                  cursor: 'pointer',
-                  transition: 'var(--transition-smooth)',
-                  ...font.style, 
-                  fontSize: `${fontSize}px`, 
-                  lineHeight: 1.15,
-                  wordBreak: 'break-word',
-                  color: '#ffffff',
-                  minHeight: '80px',
-                  display: 'flex',
-                  alignItems: 'center'
-                }}
-              >
-                {previewText || font.name}
-
-                {/* Copied Badge overlay */}
-                {isCopied && (
-                  <span style={{
-                    position: 'absolute',
-                    top: '8px',
-                    right: '8px',
-                    backgroundColor: 'var(--accent-color)',
-                    color: '#000000',
-                    fontSize: '0.65rem',
-                    fontWeight: 700,
-                    padding: '2px 8px',
-                    borderRadius: '4px',
-                    fontFamily: 'var(--font-body)',
-                    textTransform: 'none',
-                    letterSpacing: 'normal'
-                  }}>
-                    CSS Copiado!
-                  </span>
-                )}
-              </div>
-
-              {/* Lower Section: Font Info & Download */}
-              <div className="flex-between" style={{ flexWrap: 'wrap', gap: '12px', padding: '2px 4px' }}>
-                {/* Left Side: Meta info */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', fontSize: '0.85rem' }}>
-                  <strong style={{ color: 'var(--text-color)', fontWeight: 700, fontSize: '0.95rem' }}>{font.name}</strong>
-                  
-                  {/* Badge de categoria */}
-                  <span className="badge-secondary" style={{ textTransform: 'capitalize' }}>
-                    {font.classification}
-                  </span>
-                  
-                  <span style={{ color: 'var(--border-color-glass)', fontSize: '0.75rem' }}>•</span>
-                  
-                  {/* Downloads count com ícone */}
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                    <Download size={12} />
-                    {font.downloads || 0}
-                  </span>
-                  
-                  <span style={{ color: 'var(--border-color-glass)', fontSize: '0.75rem' }}>•</span>
-                  
-                  {/* Likes count com ícone */}
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                    <Heart size={12} style={{ color: '#ff3b30' }} fill="#ff3b30" />
-                    {Math.floor((font.views || 0) * 0.4) + 12}
-                  </span>
-                  
-                  {font.tags && font.tags.map(tag => (
-                    <span 
-                      key={tag} 
-                      style={{
-                        backgroundColor: 'var(--card-bg-hover)',
-                        color: 'var(--text-color)',
-                        fontSize: '0.65rem',
-                        fontWeight: 600,
-                        padding: '2px 8px',
-                        borderRadius: '9999px',
-                        border: '1px solid var(--border-color-glass)',
-                        marginLeft: '2px'
-                      }}
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-
-                {/* Right Side: Download Button (Free/Premium state) */}
-                {(font.price > 0 || font.id === 'f3' || font.id === 'f7') ? (
-                  user ? (
-                    user.downloads && user.downloads.includes(font.id) ? (
-                      <a 
-                        href={font.downloadUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={() => handleIncrementDownload(font.id)}
-                        className="hover-translate"
-                        style={{ 
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          fontSize: '0.8rem',
-                          color: '#000000',
-                          backgroundColor: 'var(--accent-color)',
-                          textDecoration: 'none',
-                          borderRadius: 'var(--border-radius-sm)',
-                          padding: '6px 14px',
-                          fontWeight: 600
-                        }}
-                      >
-                        <Download size={13} style={{ color: '#000000' }} />
-                        <span>Download (Adquirido)</span>
-                      </a>
-                    ) : (
-                      <button 
-                        onClick={() => {
-                          if (onPurchase) onPurchase(font);
-                        }}
-                        className="hover-translate"
-                        style={{ 
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          fontSize: '0.8rem',
-                          color: '#ffffff',
-                          backgroundColor: '#0026ff',
-                          border: 'none',
-                          borderRadius: 'var(--border-radius-sm)',
-                          padding: '6px 14px',
-                          cursor: 'pointer',
-                          fontWeight: 600
-                        }}
-                      >
-                        <span>Comprar (${font.price || '2.99'})</span>
-                      </button>
-                    )
-                  ) : (
-                    <button 
-                      onClick={() => {
-                        if (onOpenAuth) onOpenAuth();
-                      }}
-                      className="hover-translate"
-                      style={{ 
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        fontSize: '0.8rem',
-                        color: '#ffffff',
-                        backgroundColor: '#0026ff',
-                        border: 'none',
-                        borderRadius: 'var(--border-radius-sm)',
-                        padding: '6px 14px',
-                        cursor: 'pointer',
-                        fontWeight: 600
-                      }}
-                    >
-                      <span>Premium (${font.price || '2.99'})</span>
-                    </button>
-                  )
-                ) : (
-                  <a 
-                    href={font.downloadUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => handleIncrementDownload(font.id)}
-                    className="hover-translate"
-                    style={{ 
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      fontSize: '0.8rem',
-                      color: '#000000',
-                      backgroundColor: 'var(--accent-color)',
-                      textDecoration: 'none',
-                      borderRadius: 'var(--border-radius-sm)',
-                      padding: '6px 14px',
-                      fontWeight: 600
-                    }}
-                  >
-                    <Download size={13} style={{ color: '#000000' }} />
-                    <span>Download (Grátis)</span>
-                  </a>
-                )}
-              </div>
-
-            </div>
-          );
-        })}
-
-      </div>
-
-      {/* 4. Controls Bar at the Bottom (below the last font card) */}
-      <div style={{
-        marginTop: '40px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '20px',
-        width: '100%',
-        backgroundColor: 'rgba(28, 25, 23, 0.45)',
-        backdropFilter: 'blur(12px)',
-        borderRadius: '24px',
-        padding: '24px',
-        border: '1px solid rgba(255,255,255,0.06)',
-        textAlign: 'left'
-      }}>
-        
-        {/* Alphabet Filter (A-Z) */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-            Filtrar por inicial (A-Z):
-          </span>
-          <div style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '6px',
-            alignItems: 'center'
-          }} className="no-scrollbar">
+        {/* View Mode Toggle and Sorting dropdown */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          
+          {/* Sorting */}
+          <div style={{ position: 'relative' }}>
             <button
-              onClick={() => {
-                setLetterFilter('Todos');
-                setCurrentPage(1);
-              }}
+              onClick={() => setShowSortDropdown(!showSortDropdown)}
               style={{
-                padding: '6px 12px',
+                backgroundColor: 'rgba(0,0,0,0.3)',
+                color: '#fafaf9',
+                border: '1px solid rgba(255,255,255,0.08)',
                 borderRadius: '8px',
+                padding: '6px 14px',
                 fontSize: '0.75rem',
                 fontWeight: 600,
                 cursor: 'pointer',
-                border: '1px solid rgba(255,255,255,0.08)',
-                backgroundColor: letterFilter === 'Todos' || !letterFilter ? 'var(--accent-color)' : 'rgba(0,0,0,0.3)',
-                color: letterFilter === 'Todos' || !letterFilter ? '#000000' : '#fafaf9',
-                transition: 'var(--transition-smooth)'
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
               }}
             >
-              Todos
+              <span>{sortBy}</span>
+              <ChevronDown size={12} style={{ transform: showSortDropdown ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
             </button>
-            {alphabet.map(letter => {
-              const hasFonts = fontsList.some(f => f.name.toUpperCase().startsWith(letter) && matchFontClassification(f, classificationFilter));
-              const isActive = letterFilter === letter;
-              return (
-                <button
-                  key={letter}
-                  onClick={() => {
-                    if (hasFonts) {
-                      setLetterFilter(letter);
-                      setCurrentPage(1);
-                    }
-                  }}
-                  disabled={!hasFonts}
-                  style={{
-                    width: '28px',
-                    height: '28px',
-                    borderRadius: '50%',
-                    fontSize: '0.7rem',
-                    fontWeight: 700,
-                    cursor: hasFonts ? 'pointer' : 'default',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                    backgroundColor: isActive 
-                      ? 'var(--accent-color)' 
-                      : hasFonts 
-                        ? 'rgba(255,255,255,0.05)' 
-                        : 'rgba(255,255,255,0.01)',
-                    color: isActive 
-                      ? '#000000' 
-                      : hasFonts 
-                        ? '#fafaf9' 
-                        : 'rgba(255,255,255,0.15)',
-                    opacity: hasFonts ? 1 : 0.4,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    transition: 'var(--transition-smooth)'
-                  }}
-                >
-                  {letter}
-                </button>
-              );
-            })}
-          </div>
-        </div>
 
-        {/* Divider */}
-        <div style={{ height: '1px', borderTop: '1px solid rgba(255,255,255,0.06)' }} />
-
-        {/* Lower Row: Pagination & Sort */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '16px'
-        }}>
-          {/* Result Count */}
-          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-            Exibindo {filteredFonts.length > 0 ? startIndex + 1 : 0}-{Math.min(startIndex + fontsPerPage, filteredFonts.length)} de {filteredFonts.length} fontes
-          </span>
-
-          {/* Sort Dropdown */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-            <div style={{ position: 'relative' }}>
-              <button
-                onClick={() => setShowSortDropdown(!showSortDropdown)}
-                style={{
-                  backgroundColor: 'rgba(0,0,0,0.3)',
-                  color: '#fafaf9',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  borderRadius: '9999px',
-                  padding: '8px 18px',
-                  fontSize: '0.8rem',
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}
-              >
-                <span>{sortBy}</span>
-                <ChevronDown size={14} style={{ color: '#a8a29e', transform: showSortDropdown ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }} />
-              </button>
-
-              {showSortDropdown && (
-                <div style={{
-                  position: 'absolute',
-                  bottom: '100%', // Open upwards since it's at the bottom
-                  right: 0,
-                  marginBottom: '6px',
-                  backgroundColor: '#0c0a09',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: '12px',
-                  padding: '4px',
-                  zIndex: 150,
-                  minWidth: '150px',
-                  boxShadow: '0 -10px 25px rgba(0,0,0,0.5)'
-                }}>
-                  {['Título (A-Z)', 'Título (Z-A)'].map((opt) => (
-                    <button
-                      key={opt}
-                      onClick={() => {
-                        setSortBy(opt);
-                        setShowSortDropdown(false);
-                      }}
-                      style={{
-                        width: '100%',
-                        textAlign: 'left',
-                        padding: '8px 12px',
-                        backgroundColor: 'transparent',
-                        color: sortBy === opt ? '#adfa1d' : '#fafaf9',
-                        border: 'none',
-                        borderRadius: '8px',
-                        fontSize: '0.75rem',
-                        fontWeight: 500,
-                        cursor: 'pointer'
-                      }}
-                      className="hover-bg-stone-900"
-                    >
-                      {opt}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Pagination Controls */}
-            {totalPages > 1 && (
-              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                <button
-                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                  disabled={activePage === 1}
-                  style={{
-                    backgroundColor: 'rgba(0,0,0,0.3)',
-                    color: activePage === 1 ? '#a8a29e' : '#fafaf9',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                    borderRadius: '8px',
-                    padding: '6px 12px',
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    cursor: activePage === 1 ? 'default' : 'pointer',
-                    opacity: activePage === 1 ? 0.5 : 1
-                  }}
-                >
-                  Anterior
-                </button>
-
-                {[...Array(totalPages)].map((_, i) => {
-                  const pageNum = i + 1;
-                  const isPageActive = activePage === pageNum;
-                  return (
-                    <button
-                      key={pageNum}
-                      onClick={() => setCurrentPage(pageNum)}
-                      style={{
-                        width: '32px',
-                        height: '32px',
-                        borderRadius: '50%',
-                        fontSize: '0.8rem',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        border: '1px solid rgba(255,255,255,0.08)',
-                        backgroundColor: isPageActive ? '#ffffff' : 'rgba(0,0,0,0.3)',
-                        color: isPageActive ? '#000000' : '#fafaf9',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: 'var(--transition-smooth)'
-                      }}
-                    >
-                      {pageNum}
-                    </button>
-                  );
-                })}
-
-                <button
-                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                  disabled={activePage === totalPages}
-                  style={{
-                    backgroundColor: 'rgba(0,0,0,0.3)',
-                    color: activePage === totalPages ? '#a8a29e' : '#fafaf9',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                    borderRadius: '8px',
-                    padding: '6px 12px',
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    cursor: activePage === totalPages ? 'default' : 'pointer',
-                    opacity: activePage === totalPages ? 0.5 : 1
-                  }}
-                >
-                  Próxima
-                </button>
+            {showSortDropdown && (
+              <div style={{
+                position: 'absolute',
+                top: '100%',
+                right: 0,
+                marginTop: '4px',
+                backgroundColor: '#0c0a09',
+                border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: '8px',
+                padding: '4px',
+                zIndex: 150,
+                minWidth: '140px',
+                boxShadow: '0 10px 25px rgba(0,0,0,0.5)'
+              }}>
+                {['Título (A-Z)', 'Título (Z-A)', 'Popularidade'].map((opt) => (
+                  <button
+                    key={opt}
+                    onClick={() => {
+                      setSortBy(opt);
+                      setShowSortDropdown(false);
+                    }}
+                    style={{
+                      width: '100%',
+                      textAlign: 'left',
+                      padding: '8px 12px',
+                      backgroundColor: 'transparent',
+                      color: sortBy === opt ? 'var(--accent-color)' : '#fafaf9',
+                      border: 'none',
+                      borderRadius: '6px',
+                      fontSize: '0.75rem',
+                      fontWeight: 500,
+                      cursor: 'pointer'
+                    }}
+                    className="hover-bg-stone-900"
+                  >
+                    {opt}
+                  </button>
+                ))}
               </div>
             )}
+          </div>
+
+          {/* List/Grid toggler buttons */}
+          <div style={{ display: 'flex', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', overflow: 'hidden' }}>
+            <button
+              onClick={() => setViewMode('grid')}
+              style={{
+                padding: '6px 10px',
+                backgroundColor: viewMode === 'grid' ? 'rgba(255,255,255,0.08)' : 'transparent',
+                border: 'none',
+                color: viewMode === 'grid' ? 'var(--accent-color)' : '#8c8a89',
+                cursor: 'pointer'
+              }}
+              title="Visualização em Grade"
+              aria-label="Grade"
+            >
+              <Grid size={14} />
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              style={{
+                padding: '6px 10px',
+                backgroundColor: viewMode === 'list' ? 'rgba(255,255,255,0.08)' : 'transparent',
+                border: 'none',
+                color: viewMode === 'list' ? 'var(--accent-color)' : '#8c8a89',
+                cursor: 'pointer'
+              }}
+              title="Visualização em Lista"
+              aria-label="Lista"
+            >
+              <List size={14} />
+            </button>
           </div>
         </div>
       </div>
 
+      {/* 4. Font Grid / List Display */}
+      {isLoading ? (
+        // Loading Skeleton state
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: viewMode === 'grid' ? 'repeat(1, minmax(0, 1fr))' : '1fr', 
+          gap: '24px' 
+        }} className={viewMode === 'grid' ? 'md:grid-cols-2 lg:grid-cols-3' : ''}>
+          {[...Array(viewMode === 'grid' ? 6 : 4)].map((_, i) => (
+            <SkeletonCard key={i} viewMode={viewMode} />
+          ))}
+        </div>
+      ) : filteredFonts.length === 0 ? (
+        // Empty State visual representation
+        <div 
+          className="glass-panel"
+          style={{
+            padding: '48px 24px',
+            borderRadius: 'var(--border-radius-lg)',
+            border: '1px dotted var(--border-color-dotted)',
+            textAlign: 'center',
+            backgroundColor: 'rgba(28, 25, 23, 0.45)',
+            maxWidth: '500px',
+            margin: '40px auto'
+          }}
+        >
+          <div style={{
+            width: '48px',
+            height: '48px',
+            borderRadius: '50%',
+            backgroundColor: 'rgba(255,255,255,0.03)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: '0 auto 16px auto',
+            color: 'var(--text-muted)'
+          }}>
+            <AlertCircle size={24} />
+          </div>
+          <h3 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: '6px' }}>Nenhuma fonte encontrada</h3>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+            Nenhum resultado corresponde à sua pesquisa ou filtros ativos. Tente redefini-los para buscar novamente.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setSearchQuery('');
+              setActiveStyles([]);
+              setShowOnlyFavorites(false);
+            }}
+            className="btn-accent-ali hover-translate"
+            style={{ 
+              marginTop: '16px', 
+              padding: '6px 14px', 
+              fontSize: '0.75rem', 
+              borderRadius: 'var(--border-radius-sm)',
+              cursor: 'pointer'
+            }}
+          >
+            Redefinir Filtros
+          </button>
+        </div>
+      ) : (
+        // Render Font cards
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: viewMode === 'grid' ? 'repeat(1, minmax(0, 1fr))' : '1fr', 
+          gap: '24px' 
+        }} className={viewMode === 'grid' ? 'md:grid-cols-2 lg:grid-cols-3' : ''}>
+          {paginatedFonts.map((font) => (
+            <FontCard 
+              key={font.id}
+              font={font}
+              previewText={previewText}
+              fontSize={fontSize}
+              fontWeight={fontWeight}
+              isItalic={isItalic}
+              textTransform={textTransform}
+              textAlign={textAlign}
+              letterSpacing={letterSpacing}
+              viewMode={viewMode}
+              isFavorite={favorites.includes(font.id)}
+              onToggleFavorite={() => handleToggleFavorite(font.id)}
+              onCopyName={handleCopyName}
+              onCopyCSS={handleCopyCSS}
+              onDownload={handleDownload}
+              downloadingId={downloadingId}
+              user={user}
+              highlightText={highlightText}
+              searchQuery={searchQuery}
+            />
+          ))}
+        </div>
+      )}
 
+      {/* 5. Load More Button */}
+      {hasMore && !isLoading && (
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '40px' }}>
+          <button
+            type="button"
+            onClick={() => setVisibleCount(prev => prev + 4)}
+            className="btn-dotted-link hover-translate"
+            style={{
+              padding: '10px 24px',
+              borderRadius: '9999px',
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              backgroundColor: 'rgba(255,255,255,0.02)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+            aria-label="Carregar mais fontes"
+          >
+            <RefreshCw size={12} />
+            <span>Carregar Mais</span>
+          </button>
+        </div>
+      )}
+
+      {/* 6. Success Toast Alert Overlay */}
+      {showToast && (
+        <div 
+          className="toast-slide-in"
+          style={{
+            position: 'fixed',
+            bottom: '24px',
+            right: '24px',
+            backgroundColor: 'var(--accent-color)',
+            color: '#000000',
+            padding: '12px 20px',
+            borderRadius: '12px',
+            boxShadow: '0 10px 25px rgba(0,0,0,0.3)',
+            zIndex: 9999,
+            fontWeight: 700,
+            fontSize: '0.8rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            backdropFilter: 'blur(8px)'
+          }}
+        >
+          <Check size={16} />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
+      {/* Custom Styles Injection */}
       <style>{`
         .no-scrollbar::-webkit-scrollbar {
           display: none;
@@ -789,9 +1204,64 @@ export default function FontsGallery({ onOpenAuth, user, onPurchase }) {
         .hover-bg-stone-900:hover {
           background-color: #1c1917 !important;
         }
+        
+        /* Font Card hover zoom effects */
+        .font-card-hover:hover {
+          transform: translateY(-4px);
+          border-color: rgba(255, 255, 255, 0.15) !important;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+        }
+        
+        /* Shimmer loading skeleton effect */
+        @keyframes skeleton-pulse {
+          0% { opacity: 0.6; }
+          50% { opacity: 0.3; }
+          100% { opacity: 0.6; }
+        }
+        .pulse-skeleton {
+          animation: skeleton-pulse 1.5s ease-in-out infinite;
+        }
+
+        /* Toast slide animation */
+        @keyframes toast-in {
+          from { transform: translateY(100px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+        .toast-slide-in {
+          animation: toast-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        /* Spinner rotation Loader for download button */
+        .spinner-loader {
+          width: 13px;
+          height: 13px;
+          border: 2px solid #000000;
+          border-bottom-color: transparent;
+          border-radius: 50%;
+          display: inline-block;
+          box-sizing: border-box;
+          animation: rotation 1s linear infinite;
+        }
+        @keyframes rotation {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+
+        /* Keyboard focus visible outline override */
+        button:focus-visible, h3:focus-visible {
+          outline: 2px solid var(--accent-color) !important;
+          outline-offset: 2px;
+        }
+
         @media (min-width: 768px) {
+          .md\\:grid-cols-2 {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          }
           .md\\:grid-cols-3 {
             grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+          }
+          .md\\:grid-cols-4 {
+            grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
           }
         }
       `}</style>
