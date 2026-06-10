@@ -261,9 +261,47 @@ export default function Dashboard({ user, onSelectAsset, favoritesList, onLogOut
   const displayAssets = purchasedAssets.length > 0 ? purchasedAssets : assetsData.slice(0, 3);
 
   // Filter saved/favorited assets
-  const savedAssets = assetsData.filter(asset => 
-    favoritesList && favoritesList.includes(asset.id)
-  );
+  const allSavedIds = favoritesList || [];
+  const resolvedSavedAssets = allSavedIds
+    .map(id => getAssetDetails(id))
+    .filter(asset => asset !== null);
+
+  // 1. Get the items that belong to the active collection (or all items if activeCollectionId is 'all')
+  const collectionFilteredAssets = activeCollectionId === 'all'
+    ? resolvedSavedAssets
+    : (() => {
+        const activeCol = (user.collections || []).find(col => col.id === activeCollectionId);
+        if (!activeCol) return [];
+        return resolvedSavedAssets.filter(asset => activeCol.itemIds?.includes(asset.id));
+      })();
+
+  // 2. Filter by search query and category
+  const filteredSavedAssets = collectionFilteredAssets.filter(asset => {
+    // Category match
+    const categoryMatch = savedCategory === 'Todos' || asset.category.toLowerCase() === savedCategory.toLowerCase();
+    
+    // Search query match
+    const query = savedSearchQuery.toLowerCase().trim();
+    const searchMatch = !query || 
+      asset.title.toLowerCase().includes(query) || 
+      asset.author.toLowerCase().includes(query);
+      
+    return categoryMatch && searchMatch;
+  });
+
+  // 3. Sort the results
+  const finalFilteredSavedAssets = [...filteredSavedAssets].sort((a, b) => {
+    if (savedSort === 'az') {
+      return a.title.localeCompare(b.title);
+    }
+    if (savedSort === 'za') {
+      return b.title.localeCompare(a.title);
+    }
+    // Default: 'recent' (newest first, based on order in favoritesList)
+    const indexA = favoritesList.indexOf(a.id);
+    const indexB = favoritesList.indexOf(b.id);
+    return indexB - indexA;
+  });
 
   const handleProfileSave = async (e) => {
     e.preventDefault();

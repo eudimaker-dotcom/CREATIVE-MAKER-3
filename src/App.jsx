@@ -130,6 +130,17 @@ export default function App() {
     }
   }, [isDarkMode]);
 
+  // Keep favoritesList in sync with user's persisted favorites
+  useEffect(() => {
+    if (user) {
+      setFavoritesList(user.favorites || []);
+    } else {
+      setFavoritesList([]);
+    }
+  }, [user]);
+
+
+
   // Log in simulation handler
   const handleLoginSuccess = (userData) => {
     setUser({
