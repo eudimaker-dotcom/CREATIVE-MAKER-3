@@ -5,19 +5,23 @@ import { mockFonts } from '../mockData';
 // Cache for loaded Google Font families to avoid duplicate requests
 const loadedFontsCache = new Set();
 
-// Dynamic loader for Google Fonts
-const loadGoogleFont = (family) => {
-  if (!family || loadedFontsCache.has(family)) return;
-  const formatted = family.replace(/\s+/g, '+');
-  const linkId = `gfont-${formatted}`;
+// Dynamic loader for Google Fonts using correct font weight parameters
+const loadGoogleFont = (query) => {
+  if (!query || loadedFontsCache.has(query)) return;
+  const linkId = `gfont-${query.replace(/[^a-zA-Z0-9]/g, '-')}`;
   if (document.getElementById(linkId)) return;
   
   const link = document.createElement('link');
   link.id = linkId;
   link.rel = 'stylesheet';
-  link.href = `https://fonts.googleapis.com/css2?family=${formatted}:ital,wght@0,100..900;1,100..900&display=swap`;
+  link.href = `https://fonts.googleapis.com/css2?family=${query}&display=swap`;
   document.head.appendChild(link);
-  loadedFontsCache.add(family);
+  loadedFontsCache.add(query);
+};
+
+// Helper to escape RegExp special characters to prevent search bar crashes
+const escapeRegExp = (string) => {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 };
 
 // Shimmer Skeleton Loader Card Component
@@ -77,33 +81,29 @@ const FontCard = React.memo(({
   searchQuery
 }) => {
   
-  // Lazy-load Google Fonts file dynamically when the card renders
+  // Lazy-load Google Fonts stylesheet on demand when the card is rendered
   useEffect(() => {
-    if (font.style?.fontFamily) {
-      const familyName = font.style.fontFamily.split(',')[0].replace(/['"]/g, '').trim();
-      // Only load from Google Fonts if it's not standard system fallbacks like monospace
-      if (familyName.toLowerCase() !== 'monospace' && familyName.toLowerCase() !== 'sans-serif' && familyName.toLowerCase() !== 'serif') {
-        loadGoogleFont(familyName);
-      }
+    if (font.googleFontQuery) {
+      loadGoogleFont(font.googleFontQuery);
     }
-  }, [font.style?.fontFamily]);
+  }, [font.googleFontQuery]);
 
   const isDownloading = downloadingId === font.id;
   const isPremium = font.price > 0;
   const isPurchased = user && user.downloads && user.downloads.includes(font.id);
 
-  // Build reactive typography styles
+  // Combine custom typography overrides with fallback default styles of the font
   const previewStyle = {
     fontFamily: font.style?.fontFamily || 'sans-serif',
     fontSize: `${fontSize}px`,
-    fontWeight: fontWeight,
-    fontStyle: isItalic ? 'italic' : 'normal',
-    textTransform: textTransform,
+    fontWeight: fontWeight !== 600 ? fontWeight : (font.style?.fontWeight || fontWeight),
+    fontStyle: isItalic ? 'italic' : (font.style?.fontStyle || 'normal'),
+    textTransform: textTransform !== 'none' ? textTransform : (font.style?.textTransform || 'none'),
     textAlign: textAlign,
-    letterSpacing: `${letterSpacing}px`,
+    letterSpacing: letterSpacing !== 0 ? `${letterSpacing}px` : (font.style?.letterSpacing || 'normal'),
     lineHeight: 1.25,
     wordBreak: 'break-word',
-    transition: 'font-size 0.1s ease, letter-spacing 0.1s ease',
+    transition: 'font-size 0.15s ease, letter-spacing 0.15s ease, font-weight 0.15s ease',
     width: '100%',
     color: '#ffffff',
   };
@@ -326,7 +326,6 @@ const FontCard = React.memo(({
 
 export default function FontsGallery({ onOpenAuth, user, onPurchase }) {
   const [fontsList, setFontsList] = useState(mockFonts);
-  const [initialDownloads] = useState(() => user?.downloads || []);
   
   // Custom Typography & Preview States
   const [typedText, setTypedText] = useState('Aa Bb Cc — O design fala');
@@ -345,7 +344,6 @@ export default function FontsGallery({ onOpenAuth, user, onPurchase }) {
   const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
   const [sortBy, setSortBy] = useState('Título (A-Z)');
   const [showSortDropdown, setShowSortDropdown] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
   const [visibleCount, setVisibleCount] = useState(4); // Load more increments
   
   // Loading & Feedback states
@@ -383,16 +381,21 @@ export default function FontsGallery({ onOpenAuth, user, onPurchase }) {
   }, [searchQuery, activeStyles, showOnlyFavorites, sortBy]);
 
   // Reactively increment downloads for premium fonts when purchased successfully
+  const prevDownloads = useRef(user?.downloads || []);
   useEffect(() => {
-    if (user && user.downloads) {
+    const currentDownloads = user?.downloads || [];
+    // Find newly added downloads in this session
+    const newlyAdded = currentDownloads.filter(id => !prevDownloads.current.includes(id));
+    if (newlyAdded.length > 0) {
       setFontsList(prev => prev.map(f => {
-        if (user.downloads.includes(f.id) && !initialDownloads.includes(f.id) && !f.incremented) {
+        if (newlyAdded.includes(f.id) && !f.incremented) {
           return { ...f, downloads: (f.downloads || 0) + 1, incremented: true };
         }
         return f;
       }));
     }
-  }, [user?.downloads, initialDownloads]);
+    prevDownloads.current = currentDownloads;
+  }, [user?.downloads]);
 
   // Toggle favorite font ID
   const handleToggleFavorite = (fontId) => {
@@ -463,17 +466,22 @@ export default function FontsGallery({ onOpenAuth, user, onPurchase }) {
   // Text highlighting helper for search matching
   const highlightText = (text, search) => {
     if (!search.trim()) return <span>{text}</span>;
-    const regex = new RegExp(`(${search})`, 'gi');
-    const parts = text.split(regex);
-    return (
-      <span>
-        {parts.map((part, i) => 
-          regex.test(part) 
-            ? <mark key={i} style={{ backgroundColor: 'var(--accent-color)', color: '#000000', borderRadius: '3px', padding: '0 2px', fontWeight: 800 }}>{part}</mark>
-            : part
-        )}
-      </span>
-    );
+    try {
+      const escapedSearch = escapeRegExp(search);
+      const regex = new RegExp(`(${escapedSearch})`, 'gi');
+      const parts = text.split(regex);
+      return (
+        <span>
+          {parts.map((part, i) => 
+            regex.test(part) 
+              ? <mark key={i} style={{ backgroundColor: 'var(--accent-color)', color: '#000000', borderRadius: '3px', padding: '0 2px', fontWeight: 800 }}>{part}</mark>
+              : part
+          )}
+        </span>
+      );
+    } catch (err) {
+      return <span>{text}</span>;
+    }
   };
 
   // Classifications filters static mapping

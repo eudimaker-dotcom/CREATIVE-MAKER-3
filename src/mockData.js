@@ -421,7 +421,8 @@ export const mockFonts = [
     price: 0,
     views: 137,
     downloads: 23,
-    tags: ["Moderno", "Mostrar", "Minimalista", "Minimal"]
+    tags: ["Moderno", "Mostrar", "Minimalista", "Minimal"],
+    googleFontQuery: "Space+Grotesk:wght@300..700"
   },
   {
     id: "f2",
@@ -434,7 +435,8 @@ export const mockFonts = [
     price: 0,
     views: 63,
     downloads: 25,
-    tags: ["Moderno", "Mostrar", "Minimalista", "Minimal"]
+    tags: ["Moderno", "Mostrar", "Minimalista", "Minimal"],
+    googleFontQuery: "Outfit:wght@100..900"
   },
   {
     id: "f3",
@@ -447,7 +449,8 @@ export const mockFonts = [
     price: 2.99,
     views: 173,
     downloads: 41,
-    tags: ["Serif", "Moderno", "Luxury", "Luxo"]
+    tags: ["Serif", "Moderno", "Luxury", "Luxo"],
+    googleFontQuery: "Playfair+Display:ital,wght@0,400..900;1,400..900"
   },
   {
     id: "f4",
@@ -460,7 +463,8 @@ export const mockFonts = [
     price: 0,
     views: 65,
     downloads: 23,
-    tags: ["Básico", "Moderno", "Mostrar", "Script"]
+    tags: ["Básico", "Moderno", "Mostrar", "Script"],
+    googleFontQuery: "Caveat:wght@400..700"
   },
   {
     id: "f5",
@@ -473,7 +477,8 @@ export const mockFonts = [
     price: 0,
     views: 94,
     downloads: 18,
-    tags: ["Código", "Básico", "Corporate", "Corporativa"]
+    tags: ["Código", "Básico", "Corporate", "Corporativa"],
+    googleFontQuery: "Fira+Code:wght@300..700"
   },
   {
     id: "f6",
@@ -486,7 +491,8 @@ export const mockFonts = [
     price: 0,
     views: 120,
     downloads: 30,
-    tags: ["Geométrico", "Moderno"]
+    tags: ["Geométrico", "Moderno"],
+    googleFontQuery: "Righteous"
   },
   {
     id: "f7",
@@ -499,7 +505,8 @@ export const mockFonts = [
     price: 2.99,
     views: 88,
     downloads: 15,
-    tags: ["Decorativa", "Mostrar", "Luxury", "Luxo"]
+    tags: ["Decorativa", "Mostrar", "Luxury", "Luxo"],
+    googleFontQuery: "Cinzel+Decorative:wght@700"
   },
   {
     id: "f8",
@@ -512,7 +519,8 @@ export const mockFonts = [
     price: 0,
     views: 145,
     downloads: 32,
-    tags: ["Escrita", "Elegante", "Script", "Handwriting"]
+    tags: ["Escrita", "Elegante", "Script", "Handwriting"],
+    googleFontQuery: "Dancing+Script:wght@400..700"
   }
 ];
 
