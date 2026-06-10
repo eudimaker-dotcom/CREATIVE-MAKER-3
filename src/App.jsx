@@ -134,8 +134,12 @@ export default function App() {
   const handleLoginSuccess = (userData) => {
     setUser({
       ...userData,
-      downloads: userData.downloads || []
+      downloads: userData.downloads || [],
+      favorites: userData.favorites || [],
+      collections: userData.collections || [],
+      recentActivity: userData.recentActivity || []
     });
+    setFavoritesList(userData.favorites || []);
   };
 
   const handleLogOut = async () => {
@@ -159,14 +163,47 @@ export default function App() {
     }
   };
 
+  // Activity tracking helper
+  const handleTrackActivity = async (itemId, type) => {
+    if (!user) return;
+    const timestamp = new Date().toISOString();
+    const newActivity = {
+      id: `act-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      itemId,
+      type,
+      timestamp
+    };
+    
+    // Avoid spamming duplicate actions for the same item/type in activity log
+    const prevActivity = user.recentActivity || [];
+    const filtered = prevActivity.filter(act => !(act.itemId === itemId && act.type === type));
+    const recentActivity = [newActivity, ...filtered].slice(0, 20);
+
+    const updatedUser = {
+      ...user,
+      recentActivity
+    };
+    setUser(updatedUser);
+    await handleUpdateUser(updatedUser);
+  };
+
+  // Track asset views
+  useEffect(() => {
+    if (selectedAsset) {
+      handleTrackActivity(selectedAsset.id, 'view');
+    }
+  }, [selectedAsset]);
 
   // Stripe checkout purchase simulator success handler
-  const handlePaymentSuccess = (asset) => {
+  const handlePaymentSuccess = async (asset) => {
     if (user) {
-      setUser(prev => ({
-        ...prev,
-        downloads: [...(prev.downloads || []), asset.id]
-      }));
+      const updatedUser = {
+        ...user,
+        downloads: [...(user.downloads || []), asset.id]
+      };
+      setUser(updatedUser);
+      await handleUpdateUser(updatedUser);
+      await handleTrackActivity(asset.id, 'download');
     }
     // Update downloads counts in the asset list
     setDbAssets(prev => prev.map(item => {
@@ -195,23 +232,35 @@ export default function App() {
   };
 
   // Toggle saving to favorites
-  const handleToggleFavorite = (asset) => {
+  const handleToggleFavorite = async (asset) => {
     if (!user) {
       setIsAuthOpen(true);
       return;
     }
-    setFavoritesList(prev => {
-      const isFav = prev.includes(asset.id);
-      if (isFav) {
-        // Decrease saves count
-        setDbAssets(db => db.map(item => item.id === asset.id ? { ...item, saves: Math.max(0, item.saves - 1) } : item));
-        return prev.filter(id => id !== asset.id);
-      } else {
-        // Increase saves count
-        setDbAssets(db => db.map(item => item.id === asset.id ? { ...item, saves: item.saves + 1 } : item));
-        return [...prev, asset.id];
-      }
-    });
+    const assetId = asset.id;
+    const isFav = favoritesList.includes(assetId);
+    
+    let updatedFavorites;
+    if (isFav) {
+      updatedFavorites = favoritesList.filter(id => id !== assetId);
+      // Decrease saves count
+      setDbAssets(db => db.map(item => item.id === assetId ? { ...item, saves: Math.max(0, (item.saves || 0) - 1) } : item));
+    } else {
+      updatedFavorites = [...favoritesList, assetId];
+      // Increase saves count
+      setDbAssets(db => db.map(item => item.id === assetId ? { ...item, saves: (item.saves || 0) + 1 } : item));
+      // Track save action
+      setTimeout(() => handleTrackActivity(assetId, 'save'), 100);
+    }
+    
+    setFavoritesList(updatedFavorites);
+    
+    const updatedUser = {
+      ...user,
+      favorites: updatedFavorites
+    };
+    setUser(updatedUser);
+    await handleUpdateUser(updatedUser);
   };
 
   // Dynamic publishing logic handler
@@ -293,6 +342,8 @@ export default function App() {
           <TemplatesPage 
             onOpenAuth={() => setIsAuthOpen(true)}
             user={user}
+            favoritesList={favoritesList}
+            onToggleFavorite={handleToggleFavorite}
           />
         )}
 
@@ -302,6 +353,8 @@ export default function App() {
             onOpenAuth={() => setIsAuthOpen(true)}
             user={user}
             onPurchase={handlePurchaseTrigger}
+            favoritesList={favoritesList}
+            onToggleFavorite={handleToggleFavorite}
           />
         )}
 
@@ -310,6 +363,8 @@ export default function App() {
           <AssetsPage 
             onOpenAuth={() => setIsAuthOpen(true)}
             user={user}
+            favoritesList={favoritesList}
+            onToggleFavorite={handleToggleFavorite}
           />
         )}
 
@@ -318,6 +373,8 @@ export default function App() {
           <ImagesPage 
             onOpenAuth={() => setIsAuthOpen(true)}
             user={user}
+            favoritesList={favoritesList}
+            onToggleFavorite={handleToggleFavorite}
           />
         )}
 

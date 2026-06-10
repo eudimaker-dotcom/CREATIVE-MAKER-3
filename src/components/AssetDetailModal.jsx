@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Download, ShieldCheck, ShoppingBag, Eye, Calendar, Sparkles, AlertCircle, Heart, Share2, Check } from 'lucide-react';
+import { X, Download, ShieldCheck, ShoppingBag, Eye, Calendar, Sparkles, AlertCircle, Bookmark, Share2, Check } from 'lucide-react';
 import { assetsData } from '../mockData';
 
 export default function AssetDetailModal({ isOpen, onClose, asset, onPurchase, user, onSelectAsset, favoritesList, onToggleFavorite }) {
@@ -45,14 +45,14 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onPurchase, u
           </div>
 
           <div className="flex-center" style={{ gap: '8px' }}>
-            {/* Heart Save */}
+            {/* Bookmark Save */}
             <button
               onClick={() => onToggleFavorite(asset)}
               className="btn-dotted-link"
-              style={{ padding: '6px 12px', borderRadius: 'var(--border-radius-sm)', color: isFavorited ? '#ff3b30' : 'var(--text-color)', borderColor: isFavorited ? '#ff3b30' : 'var(--border-color-dotted)' }}
-              title="Save to favorites"
+              style={{ padding: '6px 12px', borderRadius: 'var(--border-radius-sm)', color: isFavorited ? 'var(--accent-color)' : 'var(--text-color)', borderColor: isFavorited ? 'var(--accent-color)' : 'var(--border-color-dotted)' }}
+              title={isFavorited ? "Remover dos salvos" : "Salvar recurso"}
             >
-              <Heart size={14} fill={isFavorited ? "currentColor" : "none"} />
+              <Bookmark size={14} fill={isFavorited ? "currentColor" : "none"} />
             </button>
 
             {/* Share */}

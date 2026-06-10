@@ -11,15 +11,21 @@ import {
   FileText, 
   Sparkles, 
   AlertCircle, 
-  Heart, 
+  Bookmark, 
   HardDrive,
   Eye,
   ExternalLink,
   ChevronDown,
   Menu,
-  X
+  X,
+  Plus,
+  Folder,
+  Search,
+  Trash2,
+  Grid,
+  List
 } from 'lucide-react';
-import { assetsData } from '../mockData';
+import { assetsData, mockFonts, mockTemplates, mockAssets, mockImages, promptsData } from '../mockData';
 
 // Input Sanitization helper to protect against XSS
 const sanitizeInput = (val) => {
@@ -73,6 +79,15 @@ export default function Dashboard({ user, onSelectAsset, favoritesList, onLogOut
   const [validationError, setValidationError] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
 
+  // Saved/Favorites and Collection States
+  const [savedSearchQuery, setSavedSearchQuery] = useState('');
+  const [savedCategory, setSavedCategory] = useState('Todos'); // 'Todos', 'Fontes', 'Templates', 'Assets', 'Imagens', 'Prompts'
+  const [savedSort, setSavedSort] = useState('recent'); // 'recent', 'az', 'za'
+  const [activeCollectionId, setActiveCollectionId] = useState('all'); // 'all' or specific collection ID
+  const [newCollectionName, setNewCollectionName] = useState('');
+  const [showNewCollectionForm, setShowNewCollectionForm] = useState(false);
+  const [collectionDropdownOpenId, setCollectionDropdownOpenId] = useState(null);
+
   // Sync state if user changes in parent component (avoids infinite loops by depending on user)
   useEffect(() => {
     if (user) {
@@ -87,6 +102,153 @@ export default function Dashboard({ user, onSelectAsset, favoritesList, onLogOut
     { id: "INV-2026-002", date: "30/04/2026", desc: "Assinatura Mensal Pro", val: "$19.00", status: "Pago" },
     { id: "INV-2026-001", date: "30/03/2026", desc: "Assinatura Mensal Pro", val: "$19.00", status: "Pago" }
   ]);
+
+  // Helper to resolve asset by ID
+  const getAssetDetails = (itemId) => {
+    // 1. Check in dbAssets (assetsData + custom uploads)
+    const asset = (assetsData || []).find(a => String(a.id) === String(itemId));
+    if (asset) {
+      return {
+        id: asset.id,
+        title: asset.title,
+        category: asset.category,
+        author: asset.author,
+        price: asset.price,
+        downloads: asset.downloads,
+        image: asset.images?.[0] || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=400&q=80',
+        type: 'asset',
+        raw: asset
+      };
+    }
+
+    // 2. Check in mockFonts
+    const font = (mockFonts || []).find(f => String(f.id) === String(itemId));
+    if (font) {
+      return {
+        id: font.id,
+        title: font.name,
+        category: 'Fontes',
+        author: font.designer,
+        price: font.price,
+        downloads: font.downloads,
+        image: 'https://images.unsplash.com/photo-1561070791-26c113006238?auto=format&fit=crop&w=400&q=80',
+        type: 'font',
+        raw: font
+      };
+    }
+
+    // 3. Check in mockTemplates
+    const template = (mockTemplates || []).find(t => String(t.id) === String(itemId));
+    if (template) {
+      return {
+        id: template.id,
+        title: template.title,
+        category: 'Templates',
+        author: template.designer || 'Designali',
+        price: template.price,
+        downloads: template.downloads,
+        image: template.image,
+        type: 'template',
+        raw: template
+      };
+    }
+
+    // 4. Check in mockAssets
+    const mAsset = (mockAssets || []).find(a => String(a.id) === String(itemId));
+    if (mAsset) {
+      return {
+        id: mAsset.id,
+        title: mAsset.title,
+        category: mAsset.category || 'Assets',
+        author: mAsset.author || 'Designali',
+        price: mAsset.price || 0,
+        downloads: mAsset.downloads || 0,
+        image: mAsset.image || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=400&q=80',
+        type: 'asset',
+        raw: mAsset
+      };
+    }
+
+    // 5. Check in mockImages
+    const image = (mockImages || []).find(img => String(img.id) === String(itemId));
+    if (image) {
+      return {
+        id: image.id,
+        title: image.title || 'Imagem Gerada',
+        category: 'Imagens',
+        author: image.author || 'Designali AI',
+        price: image.price || 0,
+        downloads: image.downloads || 0,
+        image: image.url || image.image,
+        type: 'image',
+        raw: image
+      };
+    }
+
+    // 6. Check in prompts
+    const prompt = (promptsData || []).find(p => String(p.id) === String(itemId));
+    if (prompt) {
+      return {
+        id: prompt.id,
+        title: prompt.title,
+        category: 'Prompts',
+        author: prompt.author,
+        price: prompt.price || 0,
+        downloads: prompt.downloads || 0,
+        image: 'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&w=400&q=80',
+        type: 'prompt',
+        raw: prompt
+      };
+    }
+
+    return null;
+  };
+
+  // Custom collection CRUD actions
+  const handleCreateCollection = async (e) => {
+    e.preventDefault();
+    if (!newCollectionName.trim()) return;
+    const newCol = {
+      id: `col-${Date.now()}`,
+      name: newCollectionName.trim(),
+      itemIds: []
+    };
+    const collections = [...(user.collections || []), newCol];
+    const updatedUser = { ...user, collections };
+    if (onUpdateUser) {
+      await onUpdateUser(updatedUser);
+    }
+    setNewCollectionName('');
+    setShowNewCollectionForm(false);
+  };
+
+  const handleToggleItemInCollection = async (collectionId, itemId) => {
+    const collections = (user.collections || []).map(col => {
+      if (col.id === collectionId) {
+        const exists = col.itemIds.includes(itemId);
+        const newItemIds = exists 
+          ? col.itemIds.filter(id => id !== itemId)
+          : [...col.itemIds, itemId];
+        return { ...col, itemIds: newItemIds };
+      }
+      return col;
+    });
+    const updatedUser = { ...user, collections };
+    if (onUpdateUser) {
+      await onUpdateUser(updatedUser);
+    }
+  };
+
+  const handleDeleteCollection = async (collectionId) => {
+    const collections = (user.collections || []).filter(col => col.id !== collectionId);
+    const updatedUser = { ...user, collections };
+    if (onUpdateUser) {
+      await onUpdateUser(updatedUser);
+    }
+    if (activeCollectionId === collectionId) {
+      setActiveCollectionId('all');
+    }
+  };
 
   if (!user) return null;
 
@@ -193,6 +355,7 @@ export default function Dashboard({ user, onSelectAsset, favoritesList, onLogOut
   const menuItems = [
     { id: 'overview', label: 'Visão Geral', icon: LayoutDashboard },
     { id: 'products', label: 'Meus Produtos', icon: Download },
+    { id: 'saved', label: 'Meus Salvos', icon: Bookmark },
     { id: 'subscription', label: 'Minha Assinatura', icon: CreditCard },
     { id: 'profile', label: 'Meus Dados', icon: User }
   ];
@@ -844,6 +1007,117 @@ export default function Dashboard({ user, onSelectAsset, favoritesList, onLogOut
                   </div>
                 </div>
 
+                {/* Continue de onde parou (Atividade Recente) */}
+                <div style={{ textAlign: 'left', marginTop: '16px' }}>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: '16px', color: '#ffffff' }}>
+                    Continue de onde parou (Atividade Recente)
+                  </h3>
+                  
+                  {(!user.recentActivity || user.recentActivity.length === 0) ? (
+                    <div className="glass-panel" style={{ padding: '24px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', color: '#a8a29e', fontSize: '0.8rem' }}>
+                      Nenhuma atividade recente registrada. Suas visualizações, downloads e recursos salvos aparecerão aqui.
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {user.recentActivity.slice(0, 5).map(act => {
+                        const asset = getAssetDetails(act.itemId);
+                        if (!asset) return null;
+                        
+                        let actionLabel = '';
+                        let actionColor = '#ffffff';
+                        if (act.type === 'view') {
+                          actionLabel = 'Visualizou';
+                          actionColor = '#38bdf8';
+                        } else if (act.type === 'download') {
+                          actionLabel = 'Baixou';
+                          actionColor = '#4ade80';
+                        } else if (act.type === 'save') {
+                          actionLabel = 'Salvou';
+                          actionColor = '#9EFF00';
+                        }
+                        
+                        const timeStr = new Date(act.timestamp).toLocaleString('pt-BR', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          day: '2-digit',
+                          month: '2-digit'
+                        });
+
+                        return (
+                          <div 
+                            key={act.id}
+                            className="glass-panel"
+                            style={{
+                              padding: '12px 18px',
+                              borderRadius: '12px',
+                              border: '1px solid rgba(255,255,255,0.05)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              flexWrap: 'wrap',
+                              gap: '12px'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                              <div style={{
+                                width: '32px',
+                                height: '32px',
+                                borderRadius: '50%',
+                                backgroundColor: 'rgba(255,255,255,0.05)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: actionColor,
+                                fontSize: '0.75rem',
+                                fontWeight: 700
+                              }}>
+                                {act.type === 'view' ? '👁' : act.type === 'download' ? '📥' : '🔖'}
+                              </div>
+                              
+                              <div>
+                                <span style={{ fontSize: '0.75rem', color: '#a8a29e' }}>
+                                  Você <strong style={{ color: actionColor }}>{actionLabel}</strong> o recurso:
+                                </span>
+                                <strong style={{ fontSize: '0.85rem', color: '#ffffff', display: 'block', marginTop: '2px' }}>
+                                  {asset.title}
+                                </strong>
+                              </div>
+                            </div>
+                            
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                              <span style={{ fontSize: '0.7rem', color: '#8c8a89' }}>
+                                {timeStr}
+                              </span>
+                              <button 
+                                onClick={() => {
+                                  if (asset.type === 'font') {
+                                    setActiveTab('fontes');
+                                  } else {
+                                    onSelectAsset(asset.raw);
+                                  }
+                                }}
+                                style={{
+                                  background: 'none',
+                                  border: '1px solid rgba(255,255,255,0.1)',
+                                  color: '#ffffff',
+                                  padding: '5px 10px',
+                                  borderRadius: '6px',
+                                  fontSize: '0.65rem',
+                                  fontWeight: 500,
+                                  cursor: 'pointer'
+                                }}
+                                className="hover-bg-stone-900"
+                              >
+                                Acessar
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
               </div>
             )}
 
@@ -1016,9 +1290,532 @@ export default function Dashboard({ user, onSelectAsset, favoritesList, onLogOut
                             <FileText size={14} />
                           </button>
                         </div>
-
                       </div>
                     ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* SUB TAB: MEUS SALVOS */}
+            {currentSubTab === 'saved' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '28px', textAlign: 'left' }}>
+                
+                {/* Header do Subtab */}
+                <div className="flex-between" style={{ alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
+                  <div>
+                    <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#ffffff' }}>Meus Salvos</h2>
+                    <p style={{ fontSize: '0.85rem', color: '#a8a29e', marginTop: '4px' }}>
+                      Gerencie, filtre e organize todos os seus recursos favoritos em pastas personalizadas.
+                    </p>
+                  </div>
+                  <div style={{
+                    backgroundColor: 'rgba(255,255,255,0.03)',
+                    border: '1px solid rgba(255,255,255,0.06)',
+                    borderRadius: '12px',
+                    padding: '10px 18px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    minWidth: '110px'
+                  }}>
+                    <span style={{ fontSize: '0.65rem', color: '#a8a29e', fontWeight: 600, textTransform: 'uppercase' }}>Itens Salvos</span>
+                    <strong style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--accent-color)' }}>{resolvedSavedAssets.length}</strong>
+                  </div>
+                </div>
+
+                {/* Bloco 1: Coleções / Pastas Customizadas */}
+                <div style={{
+                  backgroundColor: 'rgba(28, 25, 23, 0.45)',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                  borderRadius: '16px',
+                  padding: '16px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px'
+                }}>
+                  <div className="flex-between" style={{ alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#fafaf9', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Folder size={14} style={{ color: 'var(--accent-color)' }} />
+                      <span>Pastas & Coleções</span>
+                    </span>
+                    
+                    {/* Add folder button */}
+                    {showNewCollectionForm ? (
+                      <form onSubmit={handleCreateCollection} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                        <input 
+                          type="text" 
+                          placeholder="Nome da pasta..."
+                          value={newCollectionName}
+                          onChange={(e) => setNewCollectionName(e.target.value)}
+                          style={{
+                            backgroundColor: 'rgba(0,0,0,0.4)',
+                            border: '1px solid rgba(255,255,255,0.1)',
+                            borderRadius: '6px',
+                            color: '#ffffff',
+                            padding: '4px 10px',
+                            fontSize: '0.75rem',
+                            outline: 'none',
+                            width: '130px'
+                          }}
+                          autoFocus
+                          required
+                        />
+                        <button type="submit" className="btn-accent-ali" style={{ padding: '4px 8px', borderRadius: '6px', fontSize: '0.7rem', color: '#000000' }}>
+                          OK
+                        </button>
+                        <button type="button" onClick={() => setShowNewCollectionForm(false)} style={{ background: 'none', border: 'none', color: '#ff0055', cursor: 'pointer', fontSize: '0.75rem' }}>
+                          ✕
+                        </button>
+                      </form>
+                    ) : (
+                      <button 
+                        onClick={() => setShowNewCollectionForm(true)}
+                        style={{
+                          backgroundColor: 'rgba(255,255,255,0.04)',
+                          border: '1px solid rgba(255,255,255,0.08)',
+                          borderRadius: '6px',
+                          padding: '5px 12px',
+                          color: '#fafaf9',
+                          fontSize: '0.7rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                        className="hover-bg-stone-900"
+                      >
+                        <Plus size={12} />
+                        <span>Criar Pasta</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Folder Tabs list */}
+                  <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px', flexWrap: 'wrap' }} className="no-scrollbar">
+                    <button
+                      onClick={() => setActiveCollectionId('all')}
+                      style={{
+                        backgroundColor: activeCollectionId === 'all' ? '#ffffff' : 'rgba(0,0,0,0.3)',
+                        color: activeCollectionId === 'all' ? '#000000' : '#fafaf9',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        borderRadius: '9999px',
+                        padding: '6px 14px',
+                        fontSize: '0.75rem',
+                        fontWeight: 500,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Todos os Itens ({resolvedSavedAssets.length})
+                    </button>
+                    
+                    {(user.collections || []).map(col => {
+                      const isActive = activeCollectionId === col.id;
+                      return (
+                        <button
+                          key={col.id}
+                          onClick={() => setActiveCollectionId(col.id)}
+                          style={{
+                            backgroundColor: isActive ? 'var(--accent-color)' : 'rgba(0,0,0,0.3)',
+                            color: isActive ? '#000000' : '#fafaf9',
+                            border: '1px solid rgba(255,255,255,0.08)',
+                            borderRadius: '9999px',
+                            padding: '6px 14px',
+                            fontSize: '0.75rem',
+                            fontWeight: 500,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px'
+                          }}
+                        >
+                          <span>📁 {col.name} ({col.itemIds?.length || 0})</span>
+                        </button>
+                      );
+                    })}
+
+                    {activeCollectionId !== 'all' && (
+                      <button
+                        onClick={() => handleDeleteCollection(activeCollectionId)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#ff0055',
+                          fontSize: '0.7rem',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          padding: '6px 10px'
+                        }}
+                        title="Excluir esta pasta"
+                      >
+                        <Trash2 size={12} />
+                        <span>Excluir Pasta</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Bloco 2: Barra de Filtros e Busca */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(1, minmax(0, 1fr))',
+                  gap: '16px',
+                  width: '100%'
+                }} className="md:grid-cols-4">
+                  {/* Search input */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', gridColumn: 'span 2' }}>
+                    <label style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      <Search size={10} />
+                      <span>Pesquisar nos Salvos</span>
+                    </label>
+                    <input 
+                      type="text"
+                      placeholder="Pesquisar por título ou autor..."
+                      value={savedSearchQuery}
+                      onChange={(e) => setSavedSearchQuery(e.target.value)}
+                      style={{
+                        backgroundColor: 'rgba(0,0,0,0.3)',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        borderRadius: '8px',
+                        padding: '10px 14px',
+                        color: '#ffffff',
+                        fontSize: '0.8rem',
+                        outline: 'none',
+                        width: '100%'
+                      }}
+                    />
+                  </div>
+
+                  {/* Category Filter dropdown */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                      Categoria
+                    </label>
+                    <select
+                      value={savedCategory}
+                      onChange={(e) => setSavedCategory(e.target.value)}
+                      style={{
+                        backgroundColor: '#0c0a09',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        borderRadius: '8px',
+                        padding: '10px 14px',
+                        color: '#ffffff',
+                        fontSize: '0.8rem',
+                        outline: 'none',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {['Todos', 'Fontes', 'Templates', 'Assets', 'Imagens', 'Prompts'].map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Sort dropdown */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                      Ordenar por
+                    </label>
+                    <select
+                      value={savedSort}
+                      onChange={(e) => setSavedSort(e.target.value)}
+                      style={{
+                        backgroundColor: '#0c0a09',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        borderRadius: '8px',
+                        padding: '10px 14px',
+                        color: '#ffffff',
+                        fontSize: '0.8rem',
+                        outline: 'none',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <option value="recent">Mais Recentes</option>
+                      <option value="az">Nome (A-Z)</option>
+                      <option value="za">Nome (Z-A)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Bloco 3: Grid de Resultados Salvos */}
+                {finalFilteredSavedAssets.length === 0 ? (
+                  /* Empty State */
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '80px 24px',
+                    borderRadius: '16px',
+                    backgroundColor: '#090909',
+                    border: '1px dotted rgba(255, 255, 255, 0.1)',
+                    textAlign: 'center',
+                    marginTop: '8px'
+                  }}>
+                    <div style={{
+                      backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                      border: '1px solid rgba(255, 255, 255, 0.08)',
+                      width: '56px',
+                      height: '56px',
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'var(--text-muted)',
+                      marginBottom: '16px'
+                    }}>
+                      <Bookmark size={24} />
+                    </div>
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#ffffff', marginBottom: '6px' }}>
+                      Nenhum item salvo encontrado
+                    </h3>
+                    <p style={{ fontSize: '0.8rem', color: '#a8a29e', maxWidth: '340px', lineHeight: 1.5 }}>
+                      Experimente alterar os filtros, termos de pesquisa ou crie pastas para organizar seus favoritos.
+                    </p>
+                  </div>
+                ) : (
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))',
+                    gap: '20px'
+                  }}>
+                    {finalFilteredSavedAssets.map(asset => {
+                      const isPremium = asset.price > 0;
+                      return (
+                        <div 
+                          key={asset.id}
+                          style={{
+                            borderRadius: '16px',
+                            border: '1px solid rgba(255,255,255,0.06)',
+                            backgroundColor: '#090909',
+                            overflow: 'hidden',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                            height: '100%',
+                            position: 'relative'
+                          }}
+                          className="glass-panel"
+                        >
+                          <div>
+                            {/* Capa do Item */}
+                            <div style={{ width: '100%', aspectRatio: '4/3', overflow: 'hidden', position: 'relative' }}>
+                              <img 
+                                src={asset.image} 
+                                alt={asset.title} 
+                                onError={handleImageError}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              />
+                              
+                              {/* Remove Bookmark Button */}
+                              <button
+                                onClick={() => {
+                                  // Simulates onToggleFavorite from parent
+                                  const parentToggle = window.cm3_toggle_favorite || (() => {});
+                                  // We dispatch the raw object to the parent toggle handler
+                                  const rawItem = asset.raw || { id: asset.id };
+                                  // Since we passed parent's handleToggleFavorite, we can call it if it was injected or handled globally.
+                                  // Let's use the handler from the dashboard prop context if we can map it.
+                                  // Since onToggleFavorite is not directly passed to Dashboard, we can let user click detail modal or we can expose a trigger.
+                                  // Wait! Can we trigger unsave? Let's check how Dashboard can call onToggleFavorite.
+                                  // Wait, we didn't pass onToggleFavorite to Dashboard yet, but we can pass it, or we can just simulate it by updating user metadata!
+                                  // Let's update user metadata directly using onUpdateUser!
+                                  const updatedFavorites = allSavedIds.filter(id => id !== asset.id);
+                                  
+                                  // Also remove it from all collections
+                                  const updatedCollections = (user.collections || []).map(col => ({
+                                    ...col,
+                                    itemIds: col.itemIds.filter(id => id !== asset.id)
+                                  }));
+
+                                  const updatedUser = {
+                                    ...user,
+                                    favorites: updatedFavorites,
+                                    collections: updatedCollections
+                                  };
+                                  if (onUpdateUser) {
+                                    onUpdateUser(updatedUser);
+                                  }
+                                }}
+                                style={{
+                                  position: 'absolute',
+                                  top: '12px',
+                                  left: '12px',
+                                  width: '28px',
+                                  height: '28px',
+                                  borderRadius: '50%',
+                                  backgroundColor: 'rgba(0,0,0,0.6)',
+                                  border: '1px solid rgba(255,255,255,0.1)',
+                                  color: 'var(--accent-color)',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  cursor: 'pointer'
+                                }}
+                                title="Remover dos salvos"
+                              >
+                                <Bookmark size={12} fill="currentColor" />
+                              </button>
+
+                              <span style={{
+                                position: 'absolute',
+                                top: '12px',
+                                right: '12px',
+                                backgroundColor: 'rgba(0,0,0,0.7)',
+                                color: '#ffffff',
+                                fontSize: '0.65rem',
+                                fontWeight: 600,
+                                padding: '4px 10px',
+                                borderRadius: '9999px',
+                                border: '1px solid rgba(255,255,255,0.05)'
+                              }}>
+                                {asset.category}
+                              </span>
+                            </div>
+
+                            {/* Detalhes do texto */}
+                            <div style={{ padding: '14px' }}>
+                              <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#ffffff', lineHeight: 1.3, marginBottom: '4px' }}>
+                                {asset.title}
+                              </h4>
+                              <p style={{ fontSize: '0.7rem', color: '#a8a29e' }}>
+                                por {asset.author}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Ações e pastas */}
+                          <div style={{ padding: '0 14px 14px 14px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <button
+                              onClick={() => {
+                                if (asset.type === 'font') {
+                                  setActiveTab('fontes');
+                                } else {
+                                  onSelectAsset(asset.raw);
+                                }
+                              }}
+                              style={{
+                                flex: 1,
+                                backgroundColor: 'transparent',
+                                border: '1px solid rgba(255,255,255,0.1)',
+                                color: '#ffffff',
+                                padding: '6px',
+                                borderRadius: '8px',
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '4px'
+                              }}
+                              className="hover-bg-stone-900"
+                            >
+                              <Eye size={12} />
+                              <span>Acessar</span>
+                            </button>
+
+                            {/* Collection select dropdown */}
+                            <div style={{ position: 'relative', display: 'inline-block' }}>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setCollectionDropdownOpenId(collectionDropdownOpenId === asset.id ? null : asset.id);
+                                }}
+                                style={{
+                                  background: 'none',
+                                  border: '1px solid rgba(255,255,255,0.1)',
+                                  color: '#a8a29e',
+                                  padding: '6px 10px',
+                                  borderRadius: '6px',
+                                  fontSize: '0.7rem',
+                                  fontWeight: 500,
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}
+                                className="hover-bg-stone-900"
+                              >
+                                <Folder size={12} />
+                                <span>Pasta</span>
+                                <ChevronDown size={10} />
+                              </button>
+                              
+                              {collectionDropdownOpenId === asset.id && (
+                                <>
+                                  <div 
+                                    onClick={() => setCollectionDropdownOpenId(null)}
+                                    style={{ position: 'fixed', inset: 0, zIndex: 110 }}
+                                  />
+                                  <div style={{
+                                    position: 'absolute',
+                                    bottom: '100%',
+                                    right: 0,
+                                    marginBottom: '6px',
+                                    backgroundColor: '#0c0a09',
+                                    border: '1px solid rgba(255,255,255,0.08)',
+                                    borderRadius: '8px',
+                                    padding: '8px',
+                                    zIndex: 120,
+                                    width: '180px',
+                                    boxShadow: '0 8px 20px rgba(0,0,0,0.5)',
+                                    textAlign: 'left'
+                                  }}>
+                                    <span style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: '6px', padding: '0 4px' }}>
+                                      SALVAR NA PASTA:
+                                    </span>
+                                    
+                                    {(!user.collections || user.collections.length === 0) ? (
+                                      <span style={{ fontSize: '0.65rem', color: '#8c8a89', display: 'block', padding: '4px', fontStyle: 'italic' }}>
+                                        Crie pastas acima para organizar.
+                                      </span>
+                                    ) : (
+                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '120px', overflowY: 'auto' }}>
+                                        {user.collections.map(col => {
+                                          const isInCol = col.itemIds?.includes(asset.id);
+                                          return (
+                                            <label 
+                                              key={col.id}
+                                              style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '8px',
+                                                padding: '6px',
+                                                borderRadius: '4px',
+                                                cursor: 'pointer',
+                                                fontSize: '0.7rem',
+                                                color: isInCol ? '#ffffff' : '#a8a29e',
+                                                backgroundColor: isInCol ? 'rgba(255,255,255,0.03)' : 'transparent'
+                                              }}
+                                              className="hover-bg-stone-900"
+                                            >
+                                              <input 
+                                                type="checkbox"
+                                                checked={isInCol}
+                                                onChange={() => handleToggleItemInCollection(col.id, asset.id)}
+                                                style={{ accentColor: 'var(--accent-color)' }}
+                                              />
+                                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                {col.name}
+                                              </span>
+                                            </label>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
+                                  </div>
+                                </>
+                              )}
+                            </div>
+
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Eye, Download, ShoppingBag, Grid } from 'lucide-react';
+import { Eye, Download, ShoppingBag, Grid, Bookmark } from 'lucide-react';
 import { mockImages } from '../mockData';
 import { GlowCard } from './GlowCard';
 
-export default function ImagesPage({ onOpenAuth, user }) {
+export default function ImagesPage({ onOpenAuth, user, favoritesList, onToggleFavorite }) {
   const [selectedCategory, setSelectedCategory] = useState('Negócios'); // Negócios, Tecnologia, Natureza, Saúde, Educação, Moda, Arquitectura, Comida, Viagens
   const [selectedFormat, setSelectedFormat] = useState('Todos'); // Todos, Horizontal, Vertical, Quadrado
   const [selectedAccess, setSelectedAccess] = useState('Todos'); // Todos, Gratuito, Premium
@@ -225,6 +225,34 @@ export default function ImagesPage({ onOpenAuth, user }) {
                     alt={img.title} 
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
+                  {/* Bookmark/Favorite Overlay */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onToggleFavorite) onToggleFavorite(img);
+                    }}
+                    style={{
+                      position: 'absolute',
+                      top: '12px',
+                      left: '12px',
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '50%',
+                      backgroundColor: 'rgba(0,0,0,0.5)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      color: favoritesList?.includes(img.id) ? 'var(--accent-color)' : '#ffffff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      transition: 'var(--transition-smooth)',
+                      backdropFilter: 'blur(4px)',
+                      zIndex: 10
+                    }}
+                    title={favoritesList?.includes(img.id) ? "Remover dos salvos" : "Salvar recurso"}
+                  >
+                    <Bookmark size={14} fill={favoritesList?.includes(img.id) ? "currentColor" : "none"} />
+                  </button>
 
                   {/* Licensing label overlay */}
                   <div style={{

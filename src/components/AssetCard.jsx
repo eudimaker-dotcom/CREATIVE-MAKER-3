@@ -1,5 +1,5 @@
 import React from 'react';
-import { Download, ShoppingBag, Eye, Heart, Copy, Check } from 'lucide-react';
+import { Download, ShoppingBag, Eye, Bookmark, Copy, Check } from 'lucide-react';
 import { GlowCard } from './GlowCard';
 
 export default function AssetCard({ asset, onSelect, onPurchase, user, isPrompt = false, onCopyPrompt, copiedId, onSelectAuthor, onToggleFavorite, isFavorited }) {
@@ -93,7 +93,7 @@ export default function AssetCard({ asset, onSelect, onPurchase, user, isPrompt 
           onClick={() => onSelect(asset)}
         />
         
-        {/* Heart/Favorite Overlay */}
+        {/* Bookmark/Favorite Overlay */}
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -108,7 +108,7 @@ export default function AssetCard({ asset, onSelect, onPurchase, user, isPrompt 
             borderRadius: '50%',
             backgroundColor: 'rgba(0,0,0,0.5)',
             border: '1px solid rgba(255,255,255,0.1)',
-            color: isFavorited ? '#ff3b30' : '#ffffff',
+            color: isFavorited ? 'var(--accent-color)' : '#ffffff',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -116,9 +116,9 @@ export default function AssetCard({ asset, onSelect, onPurchase, user, isPrompt 
             transition: 'var(--transition-smooth)',
             backdropFilter: 'blur(4px)'
           }}
-          title="Salvar nos favoritos"
+          title={isFavorited ? "Remover dos salvos" : "Salvar recurso"}
         >
-          <Heart size={14} fill={isFavorited ? "currentColor" : "none"} />
+          <Bookmark size={14} fill={isFavorited ? "currentColor" : "none"} />
         </button>
 
         {/* Price/Premium Tag */}

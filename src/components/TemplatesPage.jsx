@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, Download, ShoppingBag, Loader2 } from 'lucide-react';
+import { Eye, Download, ShoppingBag, Loader2, Bookmark } from 'lucide-react';
 import { mockTemplates } from '../mockData';
 import { GlowCard } from './GlowCard';
 
-export default function TemplatesPage({ onOpenAuth, user }) {
+export default function TemplatesPage({ onOpenAuth, user, favoritesList, onToggleFavorite }) {
   const [selectedSoftware, setSelectedSoftware] = useState('PSD'); // PSD, Figma, Illustrator
   const [selectedTypes, setSelectedTypes] = useState([]); // Array supporting multi-select
   const [isLoading, setIsLoading] = useState(false);
@@ -222,13 +222,41 @@ export default function TemplatesPage({ onOpenAuth, user }) {
                 style={{ display: 'flex', flexDirection: 'column', height: '100%' }}
               >
                 {/* Thumbnail */}
-                <div className="asset-card-image-box">
+                <div className="asset-card-image-box" style={{ position: 'relative' }}>
                   <img 
                     src={tpl.image} 
                     alt={tpl.title} 
                     className="asset-card-img" 
                     loading="lazy"
                   />
+                  {/* Bookmark/Favorite Overlay */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onToggleFavorite) onToggleFavorite(tpl);
+                    }}
+                    style={{
+                      position: 'absolute',
+                      top: '12px',
+                      left: '12px',
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '50%',
+                      backgroundColor: 'rgba(0,0,0,0.5)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      color: favoritesList?.includes(tpl.id) ? 'var(--accent-color)' : '#ffffff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      transition: 'var(--transition-smooth)',
+                      backdropFilter: 'blur(4px)',
+                      zIndex: 10
+                    }}
+                    title={favoritesList?.includes(tpl.id) ? "Remover dos salvos" : "Salvar recurso"}
+                  >
+                    <Bookmark size={14} fill={favoritesList?.includes(tpl.id) ? "currentColor" : "none"} />
+                  </button>
                   <div style={{
                     position: 'absolute',
                     top: '12px',

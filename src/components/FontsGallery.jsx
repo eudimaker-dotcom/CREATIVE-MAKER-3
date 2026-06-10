@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Sparkles, Download, Copy, Check, Type, Sliders, ChevronDown, Heart, Search, Grid, List, RefreshCw, AlertCircle } from 'lucide-react';
+import { Sparkles, Download, Copy, Check, Type, Sliders, ChevronDown, Bookmark, Search, Grid, List, RefreshCw, AlertCircle } from 'lucide-react';
 import { mockFonts } from '../mockData';
 
 // Cache for loaded Google Font families to avoid duplicate requests
@@ -192,8 +192,8 @@ const FontCard = React.memo(({
             style={{ 
               padding: '8px', 
               borderRadius: '8px', 
-              color: isFavorite ? '#ff3b30' : 'var(--text-color)', 
-              borderColor: isFavorite ? '#ff3b30' : 'var(--border-color-dotted)',
+              color: isFavorite ? 'var(--accent-color)' : 'var(--text-color)', 
+              borderColor: isFavorite ? 'var(--accent-color)' : 'var(--border-color-dotted)',
               cursor: 'pointer',
               outline: 'none',
               display: 'flex',
@@ -202,10 +202,10 @@ const FontCard = React.memo(({
               backgroundColor: 'transparent'
             }}
             tabIndex={0}
-            title={isFavorite ? "Remover dos favoritos" : "Salvar nas favoritas"}
-            aria-label={isFavorite ? "Remover dos favoritos" : "Salvar nas favoritas"}
+            title={isFavorite ? "Remover dos salvos" : "Salvar recurso"}
+            aria-label={isFavorite ? "Remover dos salvos" : "Salvar recurso"}
           >
-            <Heart size={14} fill={isFavorite ? "currentColor" : "none"} />
+            <Bookmark size={14} fill={isFavorite ? "currentColor" : "none"} />
           </button>
 
           {/* Copy CSS code */}
@@ -324,7 +324,7 @@ const FontCard = React.memo(({
   );
 });
 
-export default function FontsGallery({ onOpenAuth, user, onPurchase }) {
+export default function FontsGallery({ onOpenAuth, user, onPurchase, favoritesList, onToggleFavorite }) {
   const [fontsList, setFontsList] = useState(mockFonts);
   
   // Custom Typography & Preview States
@@ -353,15 +353,19 @@ export default function FontsGallery({ onOpenAuth, user, onPurchase }) {
   const [downloadingId, setDownloadingId] = useState(null);
 
   // Favorites state backed by LocalStorage
-  const [favorites, setFavorites] = useState(() => {
+  const [favoritesState, setFavoritesState] = useState(() => {
     const saved = localStorage.getItem('cm3_favorite_fonts');
     return saved ? JSON.parse(saved) : [];
   });
 
+  const favorites = favoritesList || favoritesState;
+
   // Persist favorites
   useEffect(() => {
-    localStorage.setItem('cm3_favorite_fonts', JSON.stringify(favorites));
-  }, [favorites]);
+    if (!favoritesList) {
+      localStorage.setItem('cm3_favorite_fonts', JSON.stringify(favoritesState));
+    }
+  }, [favoritesState, favoritesList]);
 
   // Debounce effect for custom preview text to ensure high performance
   useEffect(() => {
@@ -399,16 +403,20 @@ export default function FontsGallery({ onOpenAuth, user, onPurchase }) {
 
   // Toggle favorite font ID
   const handleToggleFavorite = (fontId) => {
-    setFavorites(prev => {
-      const exists = prev.includes(fontId);
-      if (exists) {
-        triggerToast("Removida dos favoritos.");
-        return prev.filter(id => id !== fontId);
-      } else {
-        triggerToast("Adicionada aos favoritos!");
-        return [...prev, fontId];
+    if (onToggleFavorite) {
+      const font = fontsList.find(f => f.id === fontId);
+      if (font) {
+        onToggleFavorite(font);
+        const exists = favorites.includes(fontId);
+        triggerToast(exists ? "Removida dos salvos." : "Salva nos recursos salvos!");
       }
-    });
+    } else {
+      setFavoritesState(prev => {
+        const exists = prev.includes(fontId);
+        triggerToast(exists ? "Removida dos favoritos." : "Adicionada aos favoritos!");
+        return exists ? prev.filter(id => id !== fontId) : [...prev, fontId];
+      });
+    }
   };
 
   // Toast feedback trigger

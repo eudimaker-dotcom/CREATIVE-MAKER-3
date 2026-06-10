@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, Download, Info, Sun, Moon } from 'lucide-react';
+import { Eye, Download, Info, Sun, Moon, Bookmark } from 'lucide-react';
 import { mockAssets } from '../mockData';
 import { GlowCard } from './GlowCard';
 
-export default function AssetsPage({ onOpenAuth, user }) {
+export default function AssetsPage({ onOpenAuth, user, favoritesList, onToggleFavorite }) {
   const [activeCategory, setActiveCategory] = useState('SVG'); // SVG, Ícones, Vetores, Texturas, Padrões, Ilustrações, Backgrounds, Elementos 3D
   const [svgTheme, setSvgTheme] = useState('dark'); // 'dark' or 'light' for SVG & Ícones
 
@@ -110,13 +110,42 @@ export default function AssetsPage({ onOpenAuth, user }) {
                     dangerouslySetInnerHTML={{ __html: asset.svgContent }}
                   />
 
+                  {/* Bookmark/Favorite Overlay */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onToggleFavorite) onToggleFavorite(asset);
+                    }}
+                    style={{
+                      position: 'absolute',
+                      top: '12px',
+                      left: '12px',
+                      width: '26px',
+                      height: '26px',
+                      borderRadius: '50%',
+                      backgroundColor: 'rgba(0,0,0,0.5)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      color: favoritesList?.includes(asset.id) ? 'var(--accent-color)' : '#ffffff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      transition: 'var(--transition-smooth)',
+                      backdropFilter: 'blur(4px)',
+                      zIndex: 10
+                    }}
+                    title={favoritesList?.includes(asset.id) ? "Remover dos salvos" : "Salvar recurso"}
+                  >
+                    <Bookmark size={12} fill={favoritesList?.includes(asset.id) ? "currentColor" : "none"} />
+                  </button>
+
                   {/* Inside card SVG theme toggler */}
                   <button
                     onClick={() => setSvgTheme(prev => prev === 'dark' ? 'light' : 'dark')}
                     style={{
                       position: 'absolute',
                       top: '12px',
-                      left: '12px',
+                      left: '48px',
                       padding: '6px',
                       borderRadius: '50%',
                       backgroundColor: 'rgba(0, 0, 0, 0.4)',
@@ -193,6 +222,34 @@ export default function AssetsPage({ onOpenAuth, user }) {
                     borderBottom: '1px dotted var(--border-color-dotted)'
                   }}
                 >
+                  {/* Bookmark/Favorite Overlay */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onToggleFavorite) onToggleFavorite(asset);
+                    }}
+                    style={{
+                      position: 'absolute',
+                      top: '12px',
+                      left: '12px',
+                      width: '26px',
+                      height: '26px',
+                      borderRadius: '50%',
+                      backgroundColor: 'rgba(0,0,0,0.5)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      color: favoritesList?.includes(asset.id) ? 'var(--accent-color)' : '#ffffff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      transition: 'var(--transition-smooth)',
+                      backdropFilter: 'blur(4px)',
+                      zIndex: 10
+                    }}
+                    title={favoritesList?.includes(asset.id) ? "Remover dos salvos" : "Salvar recurso"}
+                  >
+                    <Bookmark size={12} fill={favoritesList?.includes(asset.id) ? "currentColor" : "none"} />
+                  </button>
                   {/* Hex codes appearing on hover */}
                   <div style={{
                     position: 'absolute',
@@ -258,13 +315,43 @@ export default function AssetsPage({ onOpenAuth, user }) {
               >
                 {/* Textures and Patterns repeatable background tile view */}
                 <div style={{
+                  position: 'relative',
                   width: '100%',
                   aspectRatio: '4/3',
                   backgroundImage: `url(${asset.image})`,
                   backgroundRepeat: 'repeat',
                   backgroundSize: activeCategory === 'Padrões' ? '32px' : 'auto',
                   borderBottom: '1px dotted var(--border-color-dotted)'
-                }} />
+                }}>
+                  {/* Bookmark/Favorite Overlay */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onToggleFavorite) onToggleFavorite(asset);
+                    }}
+                    style={{
+                      position: 'absolute',
+                      top: '12px',
+                      left: '12px',
+                      width: '26px',
+                      height: '26px',
+                      borderRadius: '50%',
+                      backgroundColor: 'rgba(0,0,0,0.5)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      color: favoritesList?.includes(asset.id) ? 'var(--accent-color)' : '#ffffff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      transition: 'var(--transition-smooth)',
+                      backdropFilter: 'blur(4px)',
+                      zIndex: 10
+                    }}
+                    title={favoritesList?.includes(asset.id) ? "Remover dos salvos" : "Salvar recurso"}
+                  >
+                    <Bookmark size={12} fill={favoritesList?.includes(asset.id) ? "currentColor" : "none"} />
+                  </button>
+                </div>
 
                 <div className="asset-card-info" style={{ display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
                   <div>
@@ -306,6 +393,34 @@ export default function AssetsPage({ onOpenAuth, user }) {
                   overflow: 'hidden',
                   borderBottom: '1px dotted var(--border-color-dotted)'
                 }}>
+                  {/* Bookmark/Favorite Overlay */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onToggleFavorite) onToggleFavorite(asset);
+                    }}
+                    style={{
+                      position: 'absolute',
+                      top: '12px',
+                      left: '12px',
+                      width: '26px',
+                      height: '26px',
+                      borderRadius: '50%',
+                      backgroundColor: 'rgba(0,0,0,0.5)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      color: favoritesList?.includes(asset.id) ? 'var(--accent-color)' : '#ffffff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      transition: 'var(--transition-smooth)',
+                      backdropFilter: 'blur(4px)',
+                      zIndex: 10
+                    }}
+                    title={favoritesList?.includes(asset.id) ? "Remover dos salvos" : "Salvar recurso"}
+                  >
+                    <Bookmark size={12} fill={favoritesList?.includes(asset.id) ? "currentColor" : "none"} />
+                  </button>
                   <img 
                     src={asset.image} 
                     alt={asset.title} 
