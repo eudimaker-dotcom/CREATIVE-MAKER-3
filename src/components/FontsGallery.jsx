@@ -668,7 +668,7 @@ export default function FontsGallery({ onOpenAuth, user, onPurchase }) {
           display: 'grid',
           gridTemplateColumns: 'repeat(1, minmax(0, 1fr))',
           gap: '24px'
-        }} className="md:grid-cols-4">
+        }} className="md:grid-cols-3">
           
           {/* Font Size slider */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -731,30 +731,6 @@ export default function FontsGallery({ onOpenAuth, user, onPurchase }) {
                 marginTop: '10px'
               }}
               aria-label="Ajustar tamanho da fonte"
-            />
-          </div>
-
-          {/* Font Weight slider */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-              Peso (Weight): <strong style={{ color: '#ffffff' }}>{fontWeight}</strong>
-            </label>
-            <input
-              type="range"
-              min="100"
-              max="900"
-              step="100"
-              value={fontWeight}
-              onChange={(e) => setFontWeight(parseInt(e.target.value))}
-              style={{
-                width: '100%',
-                height: '5px',
-                borderRadius: '9999px',
-                cursor: 'pointer',
-                accentColor: 'var(--accent-color)',
-                marginTop: '16px'
-              }}
-              aria-label="Ajustar peso da fonte"
             />
           </div>
 
