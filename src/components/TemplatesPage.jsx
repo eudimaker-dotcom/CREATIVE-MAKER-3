@@ -5,7 +5,6 @@ import { GlowCard } from './GlowCard';
 
 export default function TemplatesPage({ onOpenAuth, user, favoritesList, onToggleFavorite }) {
   const [selectedSoftware, setSelectedSoftware] = useState('PSD'); // PSD, Figma, Illustrator
-  const [selectedTypes, setSelectedTypes] = useState([]); // Array supporting multi-select
   const [isLoading, setIsLoading] = useState(false);
 
   // Sync active software filter from URL
@@ -18,17 +17,6 @@ export default function TemplatesPage({ onOpenAuth, user, favoritesList, onToggl
   }, [window.location.search]);
 
   const softwares = ['PSD', 'Figma', 'Illustrator'];
-  const types = ['Flyers', 'CV', 'Portfólio', 'Catálogo', 'Apresentação', 'Proposta Comercial'];
-
-  const toggleType = (type) => {
-    setSelectedTypes(prev => {
-      if (prev.includes(type)) {
-        return prev.filter(t => t !== type);
-      } else {
-        return [...prev, type];
-      }
-    });
-  };
 
   const handleSoftwareChange = (soft) => {
     setIsLoading(true);
@@ -39,15 +27,12 @@ export default function TemplatesPage({ onOpenAuth, user, favoritesList, onToggl
   };
 
   const clearFilters = () => {
-    setSelectedTypes([]);
+    setSelectedSoftware('PSD');
   };
 
   // Filter templates
   const filteredTemplates = mockTemplates.filter(tpl => {
-    const matchesSoftware = tpl.software === selectedSoftware;
-    const matchesTypes = selectedTypes.length === 0 || 
-                         selectedTypes.some(type => tpl.types.includes(type));
-    return matchesSoftware && matchesTypes;
+    return tpl.software === selectedSoftware;
   });
 
   return (
@@ -61,7 +46,7 @@ export default function TemplatesPage({ onOpenAuth, user, favoritesList, onToggl
         </p>
       </div>
 
-      {/* Double-Tier Filters */}
+      {/* Filters */}
       <div style={{ marginBottom: '32px' }}>
         
         {/* Primary Filter: Software Tabs */}
@@ -76,7 +61,6 @@ export default function TemplatesPage({ onOpenAuth, user, favoritesList, onToggl
           gap: '6px',
           overflowX: 'auto',
           whiteSpace: 'nowrap',
-          marginBottom: '16px',
           scrollbarWidth: 'none'
         }} className="no-scrollbar">
           {softwares.map((soft) => {
@@ -101,71 +85,6 @@ export default function TemplatesPage({ onOpenAuth, user, favoritesList, onToggl
               </button>
             );
           })}
-        </div>
-
-        {/* Secondary Filter: Types Pills with multi-select */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '12px',
-          width: '100%',
-          backgroundColor: 'rgba(28, 25, 23, 0.45)',
-          backdropFilter: 'blur(12px)',
-          borderRadius: '20px',
-          padding: '12px 20px',
-          border: '1px solid rgba(255,255,255,0.06)'
-        }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            overflowX: 'auto',
-            whiteSpace: 'nowrap',
-            scrollbarWidth: 'none',
-            flexGrow: 1
-          }} className="no-scrollbar">
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginRight: '8px' }}>Categorias:</span>
-            {types.map((type) => {
-              const isActive = selectedTypes.includes(type);
-              return (
-                <button
-                  key={type}
-                  onClick={() => toggleType(type)}
-                  style={{
-                    backgroundColor: isActive ? 'var(--accent-color)' : 'rgba(0,0,0,0.3)',
-                    color: isActive ? '#000000' : '#fafaf9',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                    borderRadius: '9999px',
-                    padding: '6px 14px',
-                    fontSize: '0.8rem',
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                    transition: 'var(--transition-smooth)'
-                  }}
-                >
-                  {type}
-                </button>
-              );
-            })}
-          </div>
-          
-          {selectedTypes.length > 0 && (
-            <button 
-              onClick={clearFilters}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: 'var(--text-muted)',
-                fontSize: '0.75rem',
-                cursor: 'pointer',
-                textDecoration: 'underline'
-              }}
-            >
-              Limpar Filtros
-            </button>
-          )}
         </div>
 
       </div>

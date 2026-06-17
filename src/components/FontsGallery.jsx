@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Sparkles, Download, Copy, Check, Type, Sliders, ChevronDown, Bookmark, Search, Grid, List, RefreshCw, AlertCircle } from 'lucide-react';
+import { Sparkles, Download, Copy, Check, Type, Sliders, ChevronDown, Bookmark, Search, Grid, List, RefreshCw, AlertCircle, Heart } from 'lucide-react';
 import { mockFonts } from '../mockData';
 
 // Cache for loaded Google Font families to avoid duplicate requests

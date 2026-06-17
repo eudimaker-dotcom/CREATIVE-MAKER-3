@@ -4,7 +4,7 @@
   /* Common variables */
   --accent-color: #adfa1d; /* Lime green */
   --accent-color-hover: #96d812;
-  --font-heading: 'Outfit', 'Space Grotesk', sans-serif;
+  --font-heading: 'Space Grotesk', 'Outfit', sans-serif;
   --font-body: 'Inter', sans-serif;
   --transition-smooth: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   --border-radius-lg: 24px;
@@ -705,6 +705,10 @@ h1, h2, h3, h4, h5, h6 {
 
 /* ===== Metallic Text Effect ===== */
 .metallic-text {
+  font-family: 'Space Grotesk', sans-serif !important;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
   background: linear-gradient(180deg, #1c1917 30%, #57534e 75%, #78716c 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
